@@ -1,0 +1,30 @@
+name: rmt
+version: "0.1.0"
+author: Muharem Hrnjadovic <muharem@linux.com>
+about: Automated sending of emails using templates
+args:
+subcommands:
+   - run:
+      args:
+         - config:
+            short: c
+            long: config
+            value_name: CFILE
+            help: configuration file path
+            takes_value: true
+            required: true
+         - template:
+            short: t
+            long: template
+            value_name: TFILE
+            help: template file path
+            takes_value: true
+            required: true
+         - dry_run:
+            short: n
+            long: dry-run
+            help: no action, just show what would be done
+   - sample:
+      subcommands:
+         - config:
+         - template:
