@@ -1,8 +1,4 @@
 name: rmt
-version: "0.1.0"
-author: Muharem Hrnjadovic <muharem@linux.com>
-about: Automated sending of emails using templates
-args:
 subcommands:
    - run:
       args:

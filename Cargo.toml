@@ -1,7 +1,7 @@
 [package]
 authors = ["Muharem Hrnjadovic <muharem@linux.com>"]
 categories = ["command-line-utilities"]
-description = "A command-line tool to send emails using templates"
+description = "Tool for automated sending of emails using templates"
 name = "rmt"
 version = "0.1.0"
 edition = "2018"
