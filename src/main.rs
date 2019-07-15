@@ -29,7 +29,7 @@ fn main() {
 }
 
 fn gen_sample_config(name: &str, version: &str) -> String {
-    let sample = format!(
+    format!(
         r#"# {} version {}
 #
 # anything that follows a hash is a comment
@@ -48,12 +48,11 @@ mm@gmail.com=Mickey Mouse|ORG:-Disney   # trailing comment!!
 # The 'Cc' setting below *adds* to the global 'Cc' value above
 daisy@example.com=Daisy Lila|ORG:-NASA|TITLE:-Dr.|Cc:-+inc@gg.org"#,
         name, version
-    );
-    sample
+    )
 }
 
 fn gen_sample_template(name: &str, version: &str) -> String {
-    let sample = format!(
+    format!(
         r#"FN / LN / EA = first name / last name / email address
 
 Hello %FN% // %LN%, how are things going at %ORG%?
@@ -62,6 +61,5 @@ this is your email: %EA% :)
 
 Sent with {} version {}, see https://301.mx/{} for details"#,
         name, version, name
-    );
-    sample
+    )
 }
