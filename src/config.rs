@@ -48,8 +48,8 @@ fn parse_general(_cfg: &ini::Ini) -> Result<Config, String> {
 }
 
 fn check_email(email: &str) -> bool {
-    let re = Regex::new(r"^\S+@.+\.\S+$").unwrap();
-    re.is_match(email)
+    let re = Regex::new(r"^\S+@\S+\.\S+$").unwrap();
+    re.is_match(email.to_string().trim())
 }
 
 fn parse_recipient_data(rdata: &Vec<&str>) -> Result<HashMap<String, String>, String> {
@@ -74,7 +74,6 @@ fn parse_recipient_data(rdata: &Vec<&str>) -> Result<HashMap<String, String>, St
 }
 
 fn parse_recipients(cfg: &ini::Ini) -> Result<Vec<Recipient>, String> {
-    //  ^.+@.+\..+$
     let mut result: Vec<Recipient> = Vec::new();
     let section = cfg.section(Some(String::from("recipients"))).unwrap();
     let mut keys: Vec<&String> = section.keys().collect();
@@ -360,8 +359,22 @@ daisy@example.com=Daisy Lila|ORG:-NASA|TITLE:-Dr.|Cc:-+inc@gg.org"#;
     }
 
     #[test]
+    fn check_email_with_leading_trailing_whitespace_happy_case() {
+        assert_eq!(true, check_email("        abx+alias@yajo.co.uk        "));
+    }
+
+    #[test]
     fn check_email_with_failure() {
         assert_eq!(false, check_email("@yajo.co.uk"));
+    }
+
+    #[test]
+    fn check_email_with_whitespace_failure() {
+        assert_eq!(false, check_email("     @yajo.co.uk"));
+        assert_eq!(false, check_email("hello@   .uk  "));
+        assert_eq!(false, check_email("hello@"));
+        assert_eq!(false, check_email("@"));
+        assert_eq!(false, check_email("hello@       "));
     }
 
     #[test]
