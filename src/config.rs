@@ -48,7 +48,7 @@ fn parse_general(_cfg: &ini::Ini) -> Result<Config, String> {
 }
 
 fn check_email(email: &str) -> bool {
-    let re = Regex::new(r"^.+@.+\..+$").unwrap();
+    let re = Regex::new(r"^\S+@.+\.\S+$").unwrap();
     re.is_match(email)
 }
 
@@ -77,7 +77,10 @@ fn parse_recipients(cfg: &ini::Ini) -> Result<Vec<Recipient>, String> {
     //  ^.+@.+\..+$
     let mut result: Vec<Recipient> = Vec::new();
     let section = cfg.section(Some(String::from("recipients"))).unwrap();
-    for (key, val) in section.iter() {
+    let mut keys: Vec<&String> = section.keys().collect();
+    keys.sort();
+    for key in keys {
+        let val = section.get(key).unwrap();
         if !check_email(key) {
             return Err(format!("invalid email: {}", key));
         }
@@ -288,6 +291,17 @@ daisy@example.com=Daisy Lila|ORG:-NASA|TITLE:-Dr.|Cc:-+inc@gg.org"#;
         let cfg = prep_config(file).expect("Failed to set up config");
         let mut expected = Vec::new();
         expected.push(Recipient {
+            email: String::from("daisy@example.com"),
+            names: vec![String::from("Daisy"), String::from("Lila")],
+            data: vec![
+                (String::from("ORG"), String::from("NASA")),
+                (String::from("TITLE"), String::from("Dr.")),
+                (String::from("Cc"), String::from("+inc@gg.org")),
+            ]
+            .into_iter()
+            .collect(),
+        });
+        expected.push(Recipient {
             email: String::from("jd@example.com"),
             names: vec![
                 String::from("John"),
@@ -308,17 +322,6 @@ daisy@example.com=Daisy Lila|ORG:-NASA|TITLE:-Dr.|Cc:-+inc@gg.org"#;
             data: vec![(String::from("ORG"), String::from("Disney"))]
                 .into_iter()
                 .collect(),
-        });
-        expected.push(Recipient {
-            email: String::from("daisy@example.com"),
-            names: vec![String::from("Daisy"), String::from("Lila")],
-            data: vec![
-                (String::from("ORG"), String::from("NASA")),
-                (String::from("TITLE"), String::from("Dr.")),
-                (String::from("Cc"), String::from("+inc@gg.org")),
-            ]
-            .into_iter()
-            .collect(),
         });
         assert_eq!(
             expected,
