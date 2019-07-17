@@ -1,3 +1,4 @@
+use regex::Regex;
 use std::collections::HashMap;
 
 pub struct Config {
@@ -38,17 +39,81 @@ impl ToString for Recipient {
     }
 }
 
-pub fn parse(cfg: &ini::Ini) -> Result<Config, String> {
+pub fn parse(_cfg: &ini::Ini) -> Result<Config, String> {
     return Err(String::from("not implemented"));
 }
 
-fn parse_general(cfg: &ini::Ini) -> Result<Config, String> {
+fn parse_general(_cfg: &ini::Ini) -> Result<Config, String> {
     return Err(String::from("not implemented"));
+}
+
+fn check_email(email: &str) -> bool {
+    let re = Regex::new(r"^.+@.+\..+$").unwrap();
+    re.is_match(email)
+}
+
+fn parse_recipient_data(rdata: &Vec<&str>) -> Result<HashMap<String, String>, String> {
+    let mut result: HashMap<String, String> = HashMap::new();
+    for rd in rdata.iter() {
+        // split the data, example: "Cc:-+inc@gg.org"
+        let data: Vec<&str> = rd.split(":-").map(|w| w.trim()).collect();
+        let key = data[0];
+        let val = data[1];
+        if key.len() == 0 && val.len() == 0 {
+            continue;
+        }
+        if key.len() == 0 {
+            return Err(String::from(format!("empty key for data ({})", val)));
+        }
+        if val.len() == 0 {
+            return Err(String::from(format!("empty value for key ({})", key)));
+        }
+        result.insert(key.to_string(), val.to_string());
+    }
+    Ok(result)
 }
 
 fn parse_recipients(cfg: &ini::Ini) -> Result<Vec<Recipient>, String> {
     //  ^.+@.+\..+$
-    return Ok(Vec::new());
+    let mut result: Vec<Recipient> = Vec::new();
+    let section = cfg.section(Some(String::from("recipients"))).unwrap();
+    for (key, val) in section.iter() {
+        if !check_email(key) {
+            return Err(format!("invalid email: {}", key));
+        }
+        // split recipient data, example:
+        // John Doe Jr.|ORG:-EFF|TITLE:-PhD|Cc:-bl@kf.io,info@ex.org
+        let mut data: Vec<&str> = val
+            .split("|")
+            .map(|w| w.trim())
+            .filter(|w| w.len() > 0)
+            .collect();
+        if data.len() == 0 {
+            return Err(format!("invalid data for email: {}", key));
+        }
+        // split the first entry in the recipient data i.e. the names
+        let names: Vec<String> = data
+            .remove(0)
+            .split_ascii_whitespace()
+            .filter(|w| w.len() > 0)
+            .map(|n| n.to_string())
+            .collect();
+        // parse the remainder of the recipient data
+        match parse_recipient_data(&data) {
+            Ok(rd) => result.push(Recipient {
+                email: key.to_string(),
+                names: names,
+                data: rd,
+            }),
+            Err(msg) => {
+                return Err(format!(
+                    "invalid recipient data for email: {} ({})",
+                    key, msg
+                ))
+            }
+        }
+    }
+    return Ok(result);
 }
 
 pub fn check(cfg: &ini::Ini) -> Result<usize, String> {
@@ -279,5 +344,113 @@ daisy@example.com=Daisy Lila|ORG:-NASA|TITLE:-Dr.|Cc:-+inc@gg.org"#;
             .collect(),
         };
         assert_eq!("email: jd@example.com, names: John, Doe, Jr., data: Cc => bl@kf.io,info@ex.org, ORG => EFF, TITLE => PhD", r.to_string());
+    }
+
+    #[test]
+    fn check_email_happy_case() {
+        assert_eq!(true, check_email("abx@yajo.co.uk"));
+    }
+
+    #[test]
+    fn check_email_with_plus_char_happy_case() {
+        assert_eq!(true, check_email("abx+alias@yajo.co.uk"));
+    }
+
+    #[test]
+    fn check_email_with_failure() {
+        assert_eq!(false, check_email("@yajo.co.uk"));
+    }
+
+    #[test]
+    fn parse_recipients_with_invalid_email() {
+        let file = r#"
+[general]
+From=abc@def.com
+# this is a comment
+Cc=weirdo@nsb.gov, cc@example.com
+[recipients]
+# The 'Cc' setting below *redefines* the global 'Cc' value above
+@example.com=John Doe Jr.|ORG:-EFF|TITLE:-PhD|Cc:-bl@kf.io,info@ex.org"#;
+        let cfg = prep_config(file).expect("Failed to set up config");
+        let expected = Err(String::from("invalid email: @example.com"));
+        assert_eq!(expected, parse_recipients(&cfg));
+    }
+
+    #[test]
+    fn parse_recipients_with_invalid_data() {
+        let file = r#"
+[general]
+From=abc@def.com
+# this is a comment
+Cc=weirdo@nsb.gov, cc@example.com
+[recipients]
+# The 'Cc' setting below *redefines* the global 'Cc' value above
+a@example.com="#;
+        let cfg = prep_config(file).expect("Failed to set up config");
+        let expected = Err(String::from("invalid data for email: a@example.com"));
+        assert_eq!(expected, parse_recipients(&cfg));
+    }
+
+    #[test]
+    fn parse_recipient_data_happy_case() {
+        let expected: HashMap<String, String> = vec![
+            (String::from("ORG"), String::from("EFF")),
+            (String::from("TITLE"), String::from("PhD")),
+            (String::from("Cc"), String::from("bl@kf.io,info@ex.org")),
+        ]
+        .into_iter()
+        .collect();
+        let mut args: Vec<&str> =
+            "jd@example.com=John Doe Jr.|ORG:-EFF|   TITLE:-PhD|Cc:-         bl@kf.io,info@ex.org"
+                .split("|")
+                .collect();
+
+        args.remove(0);
+        assert_eq!(Ok(expected), parse_recipient_data(&args));
+    }
+
+    #[test]
+    fn parse_recipient_data_happy_case_with_empty_key_and_value() {
+        let expected: HashMap<String, String> = vec![
+            (String::from("ORG"), String::from("EFF")),
+            (String::from("Cc"), String::from("bl@kf.io,info@ex.org")),
+        ]
+        .into_iter()
+        .collect();
+        let mut args: Vec<&str> =
+            "jd@example.com=John Doe Jr.|ORG:-EFF|:-|Cc:-         bl@kf.io,info@ex.org"
+                .split("|")
+                .collect();
+
+        args.remove(0);
+        assert_eq!(Ok(expected), parse_recipient_data(&args));
+    }
+
+    #[test]
+    fn parse_recipient_data_failure_case_with_empty_key() {
+        let mut args: Vec<&str> =
+            "jd@example.com=John Doe Jr.|:-EFF|TITLE:-PhD|Cc:-bl@kf.io,info@ex.org"
+                .split("|")
+                .collect();
+
+        args.remove(0);
+        assert_eq!(
+            Err(String::from("empty key for data (EFF)")),
+            parse_recipient_data(&args)
+        );
+    }
+
+    #[test]
+    fn parse_recipient_data_failure_case_with_empty_value() {
+        let mut args: Vec<&str> =
+            "jd@example.com=John Doe Jr.|ORG:-    |TITLE:-PhD|Cc:-bl@kf.io,info@ex.org"
+                .split("|")
+                .collect();
+
+        args.remove(0);
+        assert_eq!(
+            Err(String::from("empty value for key (ORG)")),
+            parse_recipient_data(&args)
+        );
     }
 }
