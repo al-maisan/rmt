@@ -76,8 +76,11 @@ fn parse_recipient_data(rdata: &Vec<&str>) -> Result<HashMap<String, String>, St
 fn parse_recipients(cfg: &ini::Ini) -> Result<Vec<Recipient>, String> {
     let mut result: Vec<Recipient> = Vec::new();
     let section = cfg.section(Some(String::from("recipients"))).unwrap();
+
+    // we want a stable sort order of the recipient data
     let mut keys: Vec<&String> = section.keys().collect();
     keys.sort();
+
     for key in keys {
         let val = section.get(key).unwrap();
         if !check_email(key) {
