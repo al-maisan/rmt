@@ -4,9 +4,9 @@ use std::collections::HashMap;
 #[derive(Debug)]
 pub struct Config {
    from: String,
-   replyto: Vec<String>,
-   cc: Vec<String>,
    subject: String,
+   cc: Vec<String>,
+   replyto: Vec<String>,
    version: String,
    recipients: Vec<Recipient>,
 }
@@ -18,6 +18,23 @@ impl PartialEq for Config {
          && self.cc == other.cc
          && self.subject == other.subject
          && self.recipients == other.recipients
+   }
+}
+
+impl ToString for Config {
+   fn to_string(&self) -> String {
+      let mut result = format!("from: {}, subject: {}", self.from, self.subject);
+      if self.cc.len() > 0 {
+         result.push_str(format!(", cc: {}", self.cc.join(", ")).as_ref());
+      }
+      if self.replyto.len() > 0 {
+         result.push_str(format!(", replyto: {}", self.replyto.join(", ")).as_ref());
+      }
+      result.push_str(format!(", recipients: {{{}}}", self.recipients[0].to_string()).as_ref());
+      for recipient in self.recipients.iter().skip(1) {
+         result.push_str(format!(", {{{}}}", recipient.to_string()).as_ref());
+      }
+      result
    }
 }
 
@@ -62,8 +79,10 @@ fn sm(a: &[(&str, &str)]) -> HashMap<String, String> {
    result
 }
 
-pub fn parse(_cfg: &ini::Ini) -> Result<Config, String> {
-   return Err(String::from("not implemented"));
+pub fn parse(cfg: &ini::Ini) -> Result<Config, String> {
+   let mut result = parse_general(cfg)?;
+   result.recipients = parse_recipients(cfg)?;
+   Ok(result)
 }
 
 fn check_emails(header: &str, emails: &str) -> Result<Vec<String>, String> {
@@ -126,12 +145,13 @@ fn parse_general(cfg: &ini::Ini) -> Result<Config, String> {
          _ => return Err(format!("invalid configuration datum: *{}*", key)),
       }
    }
-   return Err(String::from("not implemented"));
+   Ok(result)
 }
 
 fn check_email(email: &str) -> bool {
+   let re_long = Regex::new(r#"^("\s*)?(\S+\s+)*(\S+)\s*"?\s+<\S+@\S+\.\S+>$"#).unwrap();
    let re = Regex::new(r"^\S+@\S+\.\S+$").unwrap();
-   re.is_match(email.to_string().trim())
+   re_long.is_match(email.to_string().trim()) || re.is_match(email.to_string().trim())
 }
 
 fn parse_recipient_data(rdata: &Vec<&str>) -> Result<HashMap<String, String>, String> {
@@ -458,6 +478,16 @@ daisy@example.com=Daisy Lila|ORG:-NASA|TITLE:-Dr.|cc:-+inc@gg.org"#;
    }
 
    #[test]
+   fn check_email_with_long_form_and_quotes() {
+      assert_eq!(true, check_email(r#""Frodo Baggins" <rts@example.com>"#));
+   }
+
+   #[test]
+   fn check_email_with_long_form_and_no_quotes() {
+      assert_eq!(true, check_email(r#"Frodo Baggins <rts@example.com>"#));
+   }
+
+   #[test]
    fn parse_recipients_with_invalid_email() {
       let file = r#"
 [general]
@@ -654,5 +684,31 @@ blah=invalid
       let cfg = prep_config(file).expect("Failed to set up config");
       let expected = Err(String::from("invalid configuration datum: *blah*"));
       assert_eq!(expected, parse_general(&cfg));
+   }
+
+   #[test]
+   fn parse_happy_case() {
+      let file = r#"
+#
+# anything that follows a hash is a comment
+# email address is to the left of the '=' sign, first word after is
+# the first name, the rest is the surname
+[general]
+From="Frodo Baggins" <rts@example.com>
+cc=weirdo@nsb.gov, cc@example.com
+Reply-To="John Doe" <jd@mail.com>
+subject=Hello %FN%!
+#attachments=/home/user/atmt1.ics, ../Documents/doc2.txt
+[recipients]
+# The 'cc' setting below *redefines* the global 'cc' value above
+jd@example.com=John Doe Jr.|ORG:-EFF|TITLE:-PhD|cc:-bl@kf.io,info@ex.org
+mm@gmail.com=Mickey Mouse|ORG:-Disney   # trailing comment!!
+# The 'cc' setting below *adds* to the global 'cc' value above
+daisy@example.com=Daisy Lila|ORG:-NASA|TITLE:-Dr.|cc:-+inc@gg.org"#;
+      let cfg = prep_config(file).expect("Failed to set up config");
+      let expected = "from: Frodo Baggins <rts@example.com>, subject: Hello %FN%!, cc: cc@example.com, weirdo@nsb.gov, replyto: John Doe <jd@mail.com>, recipients: {email: daisy@example.com, names: Daisy, Lila, data: ORG => NASA, TITLE => Dr., cc => +inc@gg.org}, {email: jd@example.com, names: John, Doe, Jr., data: ORG => EFF, TITLE => PhD, cc => bl@kf.io,info@ex.org}, {email: mm@gmail.com, names: Mickey, Mouse, data: ORG => Disney}";
+      let actual = parse(&cfg).expect("Failed to parse config");
+
+      assert_eq!(expected, actual.to_string());
    }
 }
