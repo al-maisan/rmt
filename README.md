@@ -1,5 +1,7 @@
 # Rust mailing tool (rmt)
 
+Please note: this is stil work in progress..
+
 ## What is it?
 `rmt` is a simple utility that allows the automated sending of emails using a configuration file and a template for the email body. It is written in [rust](https://www.rust-lang.org/) hence the `r` in `rmt`.
 
