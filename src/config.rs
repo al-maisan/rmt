@@ -191,6 +191,9 @@ mod tests {
     use std::io::{Error, Write};
     use tempfile::NamedTempFile;
 
+    fn sv(a: &Vec<&str>) -> Vec<String> {
+        a.iter().map(|w| w.to_string()).collect()
+    }
     fn prep_config(content: &str) -> Result<ini::Ini, Error> {
         let mut tf = NamedTempFile::new()?;
 
@@ -277,6 +280,14 @@ c@d.com=C D"#;
         assert_eq!(Ok(2), check(&cfg));
     }
 
+    fn sm(a: &Vec<(&str, &str)>) -> HashMap<String, String> {
+        let mut result: HashMap<String, String> = HashMap::new();
+        for (k, v) in a.iter() {
+            result.insert(k.to_string(), v.to_string());
+        }
+        result
+    }
+
     #[test]
     fn parse_recipients_with_happy_path() {
         let file = r#"
@@ -294,36 +305,26 @@ daisy@example.com=Daisy Lila|ORG:-NASA|TITLE:-Dr.|Cc:-+inc@gg.org"#;
         let mut expected = Vec::new();
         expected.push(Recipient {
             email: String::from("daisy@example.com"),
-            names: vec![String::from("Daisy"), String::from("Lila")],
-            data: vec![
-                (String::from("ORG"), String::from("NASA")),
-                (String::from("TITLE"), String::from("Dr.")),
-                (String::from("Cc"), String::from("+inc@gg.org")),
-            ]
-            .into_iter()
-            .collect(),
+            names: sv(&vec!["Daisy", "Lila"]),
+            data: sm(&vec![
+                ("ORG", "NASA"),
+                ("TITLE", "Dr."),
+                ("Cc", "+inc@gg.org"),
+            ]),
         });
         expected.push(Recipient {
             email: String::from("jd@example.com"),
-            names: vec![
-                String::from("John"),
-                String::from("Doe"),
-                String::from("Jr."),
-            ],
-            data: vec![
-                (String::from("ORG"), String::from("EFF")),
-                (String::from("TITLE"), String::from("PhD")),
-                (String::from("Cc"), String::from("bl@kf.io,info@ex.org")),
-            ]
-            .into_iter()
-            .collect(),
+            names: sv(&vec!["John", "Doe", "Jr."]),
+            data: sm(&vec![
+                ("ORG", "EFF"),
+                ("TITLE", "PhD"),
+                ("Cc", "bl@kf.io,info@ex.org"),
+            ]),
         });
         expected.push(Recipient {
             email: String::from("mm@gmail.com"),
-            names: vec![String::from("Mickey"), String::from("Mouse")],
-            data: vec![(String::from("ORG"), String::from("Disney"))]
-                .into_iter()
-                .collect(),
+            names: sv(&vec!["Mickey", "Mouse"]),
+            data: sm(&vec![("ORG", "Disney")]),
         });
         assert_eq!(
             expected,
@@ -335,18 +336,12 @@ daisy@example.com=Daisy Lila|ORG:-NASA|TITLE:-Dr.|Cc:-+inc@gg.org"#;
     fn recipients_to_string() {
         let r = Recipient {
             email: String::from("jd@example.com"),
-            names: vec![
-                String::from("John"),
-                String::from("Doe"),
-                String::from("Jr."),
-            ],
-            data: vec![
-                (String::from("ORG"), String::from("EFF")),
-                (String::from("TITLE"), String::from("PhD")),
-                (String::from("Cc"), String::from("bl@kf.io,info@ex.org")),
-            ]
-            .into_iter()
-            .collect(),
+            names: sv(&vec!["John", "Doe", "Jr."]),
+            data: sm(&vec![
+                ("ORG", "EFF"),
+                ("TITLE", "PhD"),
+                ("Cc", "bl@kf.io,info@ex.org"),
+            ]),
         };
         assert_eq!("email: jd@example.com, names: John, Doe, Jr., data: Cc => bl@kf.io,info@ex.org, ORG => EFF, TITLE => PhD", r.to_string());
     }
@@ -412,13 +407,11 @@ a@example.com="#;
 
     #[test]
     fn parse_recipient_data_happy_case() {
-        let expected: HashMap<String, String> = vec![
-            (String::from("ORG"), String::from("EFF")),
-            (String::from("TITLE"), String::from("PhD")),
-            (String::from("Cc"), String::from("bl@kf.io,info@ex.org")),
-        ]
-        .into_iter()
-        .collect();
+        let expected: HashMap<String, String> = sm(&vec![
+            ("ORG", "EFF"),
+            ("TITLE", "PhD"),
+            ("Cc", "bl@kf.io,info@ex.org"),
+        ]);
         let mut args: Vec<&str> =
             "jd@example.com=John Doe Jr.|ORG:-EFF|   TITLE:-PhD|Cc:-         bl@kf.io,info@ex.org"
                 .split("|")
@@ -430,12 +423,8 @@ a@example.com="#;
 
     #[test]
     fn parse_recipient_data_happy_case_with_empty_key_and_value() {
-        let expected: HashMap<String, String> = vec![
-            (String::from("ORG"), String::from("EFF")),
-            (String::from("Cc"), String::from("bl@kf.io,info@ex.org")),
-        ]
-        .into_iter()
-        .collect();
+        let expected: HashMap<String, String> =
+            sm(&vec![("ORG", "EFF"), ("Cc", "bl@kf.io,info@ex.org")]);
         let mut args: Vec<&str> =
             "jd@example.com=John Doe Jr.|ORG:-EFF|:-|Cc:-         bl@kf.io,info@ex.org"
                 .split("|")
