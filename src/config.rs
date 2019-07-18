@@ -1,6 +1,7 @@
 use regex::Regex;
 use std::collections::HashMap;
 
+#[derive(Debug)]
 pub struct Config {
    from: String,
    replyto: String,
@@ -8,6 +9,16 @@ pub struct Config {
    subject: String,
    version: String,
    recipients: Vec<Recipient>,
+}
+
+impl PartialEq for Config {
+   fn eq(&self, other: &Self) -> bool {
+      self.from == other.from
+         && self.replyto == other.replyto
+         && self.cc == other.cc
+         && self.subject == other.subject
+         && self.recipients == other.recipients
+   }
 }
 
 #[derive(Debug)]
@@ -67,7 +78,7 @@ fn check_email(email: &str) -> bool {
 fn parse_recipient_data(rdata: &Vec<&str>) -> Result<HashMap<String, String>, String> {
    let mut result: Vec<(&str, &str)> = Vec::new();
    for rd in rdata.iter() {
-      // split the data, example: "Cc:-+inc@gg.org"
+      // split the data, example: "cc:-+inc@gg.org"
       let data: Vec<&str> = rd.split(":-").map(|w| w.trim()).collect();
       let key = data[0];
       let val = data[1];
@@ -99,7 +110,7 @@ fn parse_recipients(cfg: &ini::Ini) -> Result<Vec<Recipient>, String> {
          return Err(format!("invalid email: {}", key));
       }
       // split recipient data, example:
-      // John Doe Jr.|ORG:-EFF|TITLE:-PhD|Cc:-bl@kf.io,info@ex.org
+      // John Doe Jr.|ORG:-EFF|TITLE:-PhD|cc:-bl@kf.io,info@ex.org
       let mut data: Vec<&str> = val
          .split("|")
          .map(|w| w.trim())
@@ -164,16 +175,16 @@ pub fn gen_config(name: &str, version: &str) -> String {
 # the first name, the rest is the surname
 [general]
 From="Frodo Baggins" <rts@example.com>
-#Cc=weirdo@nsb.gov, cc@example.com
+#cc=weirdo@nsb.gov, cc@example.com
 #Reply-To="John Doe" <jd@mail.com>
 subject=Hello %FN%!
 #attachments=/home/user/atmt1.ics, ../Documents/doc2.txt
 [recipients]
-# The 'Cc' setting below *redefines* the global 'Cc' value above
-jd@example.com=John Doe Jr.|ORG:-EFF|TITLE:-PhD|Cc:-bl@kf.io,info@ex.org
+# The 'cc' setting below *redefines* the global 'cc' value above
+jd@example.com=John Doe Jr.|ORG:-EFF|TITLE:-PhD|cc:-bl@kf.io,info@ex.org
 mm@gmail.com=Mickey Mouse|ORG:-Disney   # trailing comment!!
-# The 'Cc' setting below *adds* to the global 'Cc' value above
-daisy@example.com=Daisy Lila|ORG:-NASA|TITLE:-Dr.|Cc:-+inc@gg.org"#,
+# The 'cc' setting below *adds* to the global 'cc' value above
+daisy@example.com=Daisy Lila|ORG:-NASA|TITLE:-Dr.|cc:-+inc@gg.org"#,
       name, version
    )
 }
@@ -290,19 +301,19 @@ c@d.com=C D"#;
 [general]
 From=abc@def.com
 # this is a comment
-Cc=weirdo@nsb.gov, cc@example.com
+cc=weirdo@nsb.gov, cc@example.com
 [recipients]
-# The 'Cc' setting below *redefines* the global 'Cc' value above
-jd@example.com=John Doe Jr.|ORG:-EFF|TITLE:-PhD|Cc:-bl@kf.io,info@ex.org
+# The 'cc' setting below *redefines* the global 'cc' value above
+jd@example.com=John Doe Jr.|ORG:-EFF|TITLE:-PhD|cc:-bl@kf.io,info@ex.org
 mm@gmail.com=Mickey Mouse|ORG:-Disney   # trailing comment!!
-# The 'Cc' setting below *adds* to the global 'Cc' value above
-daisy@example.com=Daisy Lila|ORG:-NASA|TITLE:-Dr.|Cc:-+inc@gg.org"#;
+# The 'cc' setting below *adds* to the global 'cc' value above
+daisy@example.com=Daisy Lila|ORG:-NASA|TITLE:-Dr.|cc:-+inc@gg.org"#;
       let cfg = prep_config(file).expect("Failed to set up config");
       let mut expected = Vec::new();
       expected.push(Recipient {
          email: String::from("daisy@example.com"),
          names: sa(&["Daisy", "Lila"]),
-         data: sm(&[("ORG", "NASA"), ("TITLE", "Dr."), ("Cc", "+inc@gg.org")]),
+         data: sm(&[("ORG", "NASA"), ("TITLE", "Dr."), ("cc", "+inc@gg.org")]),
       });
       expected.push(Recipient {
          email: String::from("jd@example.com"),
@@ -310,7 +321,7 @@ daisy@example.com=Daisy Lila|ORG:-NASA|TITLE:-Dr.|Cc:-+inc@gg.org"#;
          data: sm(&[
             ("ORG", "EFF"),
             ("TITLE", "PhD"),
-            ("Cc", "bl@kf.io,info@ex.org"),
+            ("cc", "bl@kf.io,info@ex.org"),
          ]),
       });
       expected.push(Recipient {
@@ -332,10 +343,10 @@ daisy@example.com=Daisy Lila|ORG:-NASA|TITLE:-Dr.|Cc:-+inc@gg.org"#;
          data: sm(&[
             ("ORG", "EFF"),
             ("TITLE", "PhD"),
-            ("Cc", "bl@kf.io,info@ex.org"),
+            ("cc", "bl@kf.io,info@ex.org"),
          ]),
       };
-      assert_eq!("email: jd@example.com, names: John, Doe, Jr., data: Cc => bl@kf.io,info@ex.org, ORG => EFF, TITLE => PhD", r.to_string());
+      assert_eq!("email: jd@example.com, names: John, Doe, Jr., data: ORG => EFF, TITLE => PhD, cc => bl@kf.io,info@ex.org", r.to_string());
    }
 
    #[test]
@@ -373,10 +384,10 @@ daisy@example.com=Daisy Lila|ORG:-NASA|TITLE:-Dr.|Cc:-+inc@gg.org"#;
 [general]
 From=abc@def.com
 # this is a comment
-Cc=weirdo@nsb.gov, cc@example.com
+cc=weirdo@nsb.gov, cc@example.com
 [recipients]
-# The 'Cc' setting below *redefines* the global 'Cc' value above
-@example.com=John Doe Jr.|ORG:-EFF|TITLE:-PhD|Cc:-bl@kf.io,info@ex.org"#;
+# The 'cc' setting below *redefines* the global 'cc' value above
+@example.com=John Doe Jr.|ORG:-EFF|TITLE:-PhD|cc:-bl@kf.io,info@ex.org"#;
       let cfg = prep_config(file).expect("Failed to set up config");
       let expected = Err(String::from("invalid email: @example.com"));
       assert_eq!(expected, parse_recipients(&cfg));
@@ -388,9 +399,9 @@ Cc=weirdo@nsb.gov, cc@example.com
 [general]
 From=abc@def.com
 # this is a comment
-Cc=weirdo@nsb.gov, cc@example.com
+cc=weirdo@nsb.gov, cc@example.com
 [recipients]
-# The 'Cc' setting below *redefines* the global 'Cc' value above
+# The 'cc' setting below *redefines* the global 'cc' value above
 a@example.com="#;
       let cfg = prep_config(file).expect("Failed to set up config");
       let expected = Err(String::from("invalid data for email: a@example.com"));
@@ -403,9 +414,9 @@ a@example.com="#;
 [general]
 From=abc@def.com
 # this is a comment
-Cc=weirdo@nsb.gov, cc@example.com
+cc=weirdo@nsb.gov, cc@example.com
 [recipients]
-# The 'Cc' setting below *redefines* the global 'Cc' value above
+# The 'cc' setting below *redefines* the global 'cc' value above
 a@example.com=A B C|ORG:-"#;
       let cfg = prep_config(file).expect("Failed to set up config");
       let expected = Err(String::from(
@@ -420,9 +431,9 @@ a@example.com=A B C|ORG:-"#;
 [general]
 From=abc@def.com
 # this is a comment
-Cc=weirdo@nsb.gov, cc@example.com
+cc=weirdo@nsb.gov, cc@example.com
 [recipients]
-# The 'Cc' setting below *redefines* the global 'Cc' value above
+# The 'cc' setting below *redefines* the global 'cc' value above
 a@example.com=A B C|:-Disney"#;
       let cfg = prep_config(file).expect("Failed to set up config");
       let expected = Err(String::from(
@@ -436,10 +447,10 @@ a@example.com=A B C|:-Disney"#;
       let expected = sm(&[
          ("ORG", "EFF"),
          ("TITLE", "PhD"),
-         ("Cc", "bl@kf.io,info@ex.org"),
+         ("cc", "bl@kf.io,info@ex.org"),
       ]);
       let mut args: Vec<&str> =
-         "jd@example.com=John Doe Jr.|ORG:-EFF|   TITLE:-PhD|Cc:-       bl@kf.io,info@ex.org"
+         "jd@example.com=John Doe Jr.|ORG:-EFF|   TITLE:-PhD|cc:-       bl@kf.io,info@ex.org"
             .split("|")
             .collect();
 
@@ -449,9 +460,9 @@ a@example.com=A B C|:-Disney"#;
 
    #[test]
    fn parse_recipient_data_happy_case_with_empty_key_and_value() {
-      let expected = sm(&[("ORG", "EFF"), ("Cc", "bl@kf.io,info@ex.org")]);
+      let expected = sm(&[("ORG", "EFF"), ("cc", "bl@kf.io,info@ex.org")]);
       let mut args: Vec<&str> =
-         "jd@example.com=John Doe Jr.|ORG:-EFF|:-|Cc:-       bl@kf.io,info@ex.org"
+         "jd@example.com=John Doe Jr.|ORG:-EFF|:-|cc:-       bl@kf.io,info@ex.org"
             .split("|")
             .collect();
 
@@ -462,7 +473,7 @@ a@example.com=A B C|:-Disney"#;
    #[test]
    fn parse_recipient_data_failure_case_with_empty_key() {
       let mut args: Vec<&str> =
-         "jd@example.com=John Doe Jr.|:-EFF|TITLE:-PhD|Cc:-bl@kf.io,info@ex.org"
+         "jd@example.com=John Doe Jr.|:-EFF|TITLE:-PhD|cc:-bl@kf.io,info@ex.org"
             .split("|")
             .collect();
 
@@ -476,7 +487,7 @@ a@example.com=A B C|:-Disney"#;
    #[test]
    fn parse_recipient_data_failure_case_with_empty_value() {
       let mut args: Vec<&str> =
-         "jd@example.com=John Doe Jr.|ORG:-   |TITLE:-PhD|Cc:-bl@kf.io,info@ex.org"
+         "jd@example.com=John Doe Jr.|ORG:-   |TITLE:-PhD|cc:-bl@kf.io,info@ex.org"
             .split("|")
             .collect();
 
@@ -485,5 +496,52 @@ a@example.com=A B C|:-Disney"#;
          Err(String::from("empty value for key (ORG)")),
          parse_recipient_data(&args)
       );
+   }
+
+   #[test]
+   fn parse_general_with_invalid_from_email() {
+      let file = r#"
+[general]
+From=abc@defcom
+# this is a comment
+cc=weirdo@nsb.gov, cc@example.com
+[recipients]
+# The 'cc' setting below *redefines* the global 'cc' value above
+@example.com=John Doe Jr.|ORG:-EFF|TITLE:-PhD|cc:-bl@kf.io,info@ex.org"#;
+      let cfg = prep_config(file).expect("Failed to set up config");
+      let expected = Err(String::from("invalid *From* email: abc@defcom"));
+      assert_eq!(expected, parse_general(&cfg));
+   }
+
+   #[test]
+   fn parse_general_with_invalid_reply_to_email() {
+      let file = r#"
+[general]
+From=abc@def.com
+Reply-To=no@one
+# this is a comment
+cc=weirdo@nsb.gov, cc@example.com
+[recipients]
+# The 'cc' setting below *redefines* the global 'cc' value above
+@example.com=John Doe Jr.|ORG:-EFF|TITLE:-PhD|cc:-bl@kf.io,info@ex.org"#;
+      let cfg = prep_config(file).expect("Failed to set up config");
+      let expected = Err(String::from("invalid *Reply-To* email: no@one"));
+      assert_eq!(expected, parse_general(&cfg));
+   }
+
+   #[test]
+   fn parse_general_with_invalid_cc_email() {
+      let file = r#"
+[general]
+From=abc@def.com
+Reply-To=no@one.org
+# this is a comment
+cc=dd@examplecom, weirdo@nsb.gov, oh!no!
+[recipients]
+# The 'cc' setting below *redefines* the global 'cc' value above
+@example.com=John Doe Jr.|ORG:-EFF|TITLE:-PhD|cc:-bl@kf.io,info@ex.org"#;
+      let cfg = prep_config(file).expect("Failed to set up config");
+      let expected = Err(String::from("invalid *cc* email(s): dd@examplecom, oh!no!"));
+      assert_eq!(expected, parse_general(&cfg));
    }
 }
