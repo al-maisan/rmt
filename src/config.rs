@@ -34,20 +34,14 @@ impl PartialEq for Config {
 impl ToString for Config {
    /// Makes it possible to print instances of `Config`
    fn to_string(&self) -> String {
-      let mut result =
-         format!("from: {}, subject: {}", self.from, self.subject);
+      let mut result = format!("from: {}, subject: {}", self.from, self.subject);
       if self.cc.len() > 0 {
          result.push_str(format!(", cc: {}", self.cc.join(", ")).as_ref());
       }
       if self.replyto.len() > 0 {
-         result.push_str(
-            format!(", replyto: {}", self.replyto.join(", ")).as_ref(),
-         );
+         result.push_str(format!(", replyto: {}", self.replyto.join(", ")).as_ref());
       }
-      result.push_str(
-         format!(", recipients: {{{}}}", self.recipients[0].to_string())
-            .as_ref(),
-      );
+      result.push_str(format!(", recipients: {{{}}}", self.recipients[0].to_string()).as_ref());
       for recipient in self.recipients.iter().skip(1) {
          result.push_str(format!(", {{{}}}", recipient.to_string()).as_ref());
       }
@@ -70,9 +64,7 @@ pub struct Recipient {
 impl PartialEq for Recipient {
    /// Makes it possible to compare instances of `Recipient`
    fn eq(&self, other: &Self) -> bool {
-      self.email == other.email
-         && self.names == other.names
-         && self.data == other.data
+      self.email == other.email && self.names == other.names && self.data == other.data
    }
 }
 
@@ -185,33 +177,32 @@ fn parse_general(cfg: &ini::Ini) -> Result<Config, String> {
 
 /// Implements a crude, basic sanity check for email addresses. Yay, regular expressions :-P
 fn check_email(email: &str) -> bool {
-   let re_long =
-      Regex::new(r#"^("\s*)?(\S+\s+)*(\S+)\s*"?\s+<\S+@\S+\.\S+>$"#).unwrap();
+   let re_long = Regex::new(r#"^("\s*)?(\S+\s+)*(\S+)\s*"?\s+<\S+@\S+\.\S+>$"#).unwrap();
    let re = Regex::new(r"^\S+@\S+\.\S+$").unwrap();
-   re_long.is_match(email.to_string().trim())
-      || re.is_match(email.to_string().trim())
+   re_long.is_match(email.to_string().trim()) || re.is_match(email.to_string().trim())
 }
 
 /// Parses the optional per-recipient data (delimited by `':-'`) if present.
-fn parse_recipient_data(
-   rdata: &Vec<&str>,
-) -> Result<HashMap<String, String>, String> {
+fn parse_recipient_data(rdata: &Vec<&str>) -> Result<HashMap<String, String>, String> {
    let mut result: Vec<(&str, &str)> = Vec::new();
    for rd in rdata.iter() {
       // split the data, example: "cc:-+inc@gg.org"
-      let data: Vec<&str> = rd.split(":-").map(|w| w.trim()).collect();
-      let key = data[0];
-      let val = data[1];
-      if key.len() == 0 && val.len() == 0 {
-         continue;
+      let data = rd.split(":-").map(|w| w.trim()).collect::<Vec<&str>>();
+      match data.as_slice() {
+         [key, val] => {
+            if key.len() == 0 && val.len() == 0 {
+               continue;
+            }
+            if key.len() == 0 {
+               return Err(format!("no key for datum ({})", val));
+            }
+            if val.len() == 0 {
+               return Err(format!("empty value for key ({})", key));
+            }
+            result.push((key, val));
+         }
+         _ => return Err(format!("invalid recipient data ({})", rd)),
       }
-      if key.len() == 0 {
-         return Err(format!("no key for datum ({})", val));
-      }
-      if val.len() == 0 {
-         return Err(format!("empty value for key ({})", key));
-      }
-      result.push((key, val));
    }
    Ok(sm(&result))
 }
@@ -254,9 +245,7 @@ fn parse_recipients(cfg: &ini::Ini) -> Result<Vec<Recipient>, String> {
             names: names,
             data: rd,
          }),
-         Err(msg) => {
-            return Err(format!("invalid recipient data for {} ({})", key, msg))
-         }
+         Err(msg) => return Err(format!("invalid recipient data for {} ({})", key, msg)),
       }
    }
    return Ok(result);
@@ -274,24 +263,16 @@ pub fn check(cfg: &ini::Ini) -> Result<usize, String> {
          Some(props) => {
             if s == "general" {
                if !props.contains_key("From") && !props.contains_key("from") {
-                  return Err(String::from(
-                     "No *From* header in the general section",
-                  ));
+                  return Err(String::from("No *From* header in the general section"));
                }
-               if !props.contains_key("Subject")
-                  && !props.contains_key("subject")
-               {
-                  return Err(String::from(
-                     "No *Subject* in the general section",
-                  ));
+               if !props.contains_key("Subject") && !props.contains_key("subject") {
+                  return Err(String::from("No *Subject* in the general section"));
                }
             }
             if s == "recipients" {
                num_recipients = props.len();
                if num_recipients == 0 {
-                  return Err(String::from(
-                     "No email recipients found in config file",
-                  ));
+                  return Err(String::from("No email recipients found in config file"));
                }
             }
          }
@@ -665,6 +646,32 @@ a@example.com=A B C|:-Disney"#;
    }
 
    #[test]
+   fn parse_recipient_data_failure_case_with_empty_rdata() {
+      let mut args: Vec<&str> = "jd@example.com=John Doe Jr.||TITLE:-PhD|"
+         .split("|")
+         .collect();
+
+      args.remove(0);
+      assert_eq!(
+         Err(String::from("invalid recipient data ()")),
+         parse_recipient_data(&args)
+      );
+   }
+
+   #[test]
+   fn parse_recipient_data_failure_case_with_invalid_format() {
+      let mut args: Vec<&str> = "jd@example.com=John Doe Jr.|R:-E:-K:-T|cc:-bl@kf.io,info@ex.org"
+         .split("|")
+         .collect();
+
+      args.remove(0);
+      assert_eq!(
+         Err(String::from("invalid recipient data (R:-E:-K:-T)")),
+         parse_recipient_data(&args)
+      );
+   }
+
+   #[test]
    fn parse_general_with_invalid_from_email() {
       let file = r#"
 [general]
@@ -707,8 +714,7 @@ cc=dd@examplecom, weirdo@nsb.gov, oh!no!
 # The 'cc' setting below *redefines* the global 'cc' value above
 @example.com=John Doe Jr.|ORG:-EFF|TITLE:-PhD|cc:-bl@kf.io,info@ex.org"#;
       let cfg = prep_config(file).expect("Failed to set up config");
-      let expected =
-         Err(String::from("invalid *cc* email(s): dd@examplecom, oh!no!"));
+      let expected = Err(String::from("invalid *cc* email(s): dd@examplecom, oh!no!"));
       assert_eq!(expected, parse_general(&cfg));
    }
 
