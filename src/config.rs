@@ -1,17 +1,27 @@
+/// The `config` module implements the logic for parsing config files.
 use regex::Regex;
 use std::collections::HashMap;
 
 #[derive(Debug)]
+/// The `Config` struct holds the contents of the config file after the latter was parsed
+/// successfully.
 pub struct Config {
+   /// The 'From' email header value (a valid email address)
    from: String,
+   /// The email subject
    subject: String,
+   /// A list of 'Cc' email addresses
    cc: Vec<String>,
+   /// A list of 'Reply-To' email addresses
    replyto: Vec<String>,
+   /// The version of the tool
    version: String,
+   /// A list of recipients who should recaive the email
    recipients: Vec<Recipient>,
 }
 
 impl PartialEq for Config {
+   /// Makes it possible to compare instances of `Config`
    fn eq(&self, other: &Self) -> bool {
       self.from == other.from
          && self.replyto == other.replyto
@@ -22,15 +32,22 @@ impl PartialEq for Config {
 }
 
 impl ToString for Config {
+   /// Makes it possible to print instances of `Config`
    fn to_string(&self) -> String {
-      let mut result = format!("from: {}, subject: {}", self.from, self.subject);
+      let mut result =
+         format!("from: {}, subject: {}", self.from, self.subject);
       if self.cc.len() > 0 {
          result.push_str(format!(", cc: {}", self.cc.join(", ")).as_ref());
       }
       if self.replyto.len() > 0 {
-         result.push_str(format!(", replyto: {}", self.replyto.join(", ")).as_ref());
+         result.push_str(
+            format!(", replyto: {}", self.replyto.join(", ")).as_ref(),
+         );
       }
-      result.push_str(format!(", recipients: {{{}}}", self.recipients[0].to_string()).as_ref());
+      result.push_str(
+         format!(", recipients: {{{}}}", self.recipients[0].to_string())
+            .as_ref(),
+      );
       for recipient in self.recipients.iter().skip(1) {
          result.push_str(format!(", {{{}}}", recipient.to_string()).as_ref());
       }
@@ -39,19 +56,28 @@ impl ToString for Config {
 }
 
 #[derive(Debug)]
+/// The `Config` struct holds per-recipient data
 pub struct Recipient {
+   /// This is the recipient's email address
    email: String,
+   /// This is a list of the recipient's names
    names: Vec<String>,
+   /// This is a map with miscellaneous optional metadata that was defined for the recipient in
+   /// question
    data: HashMap<String, String>,
 }
 
 impl PartialEq for Recipient {
+   /// Makes it possible to compare instances of `Recipient`
    fn eq(&self, other: &Self) -> bool {
-      self.email == other.email && self.names == other.names && self.data == other.data
+      self.email == other.email
+         && self.names == other.names
+         && self.data == other.data
    }
 }
 
 impl ToString for Recipient {
+   /// Makes it possible to print instances of `Recipient`
    fn to_string(&self) -> String {
       let mut dv = Vec::new();
       for (key, val) in self.data.iter() {
@@ -67,10 +93,12 @@ impl ToString for Recipient {
    }
 }
 
+/// Constructs a list of `String` from an array of string slices.
 fn sa(a: &[&str]) -> Vec<String> {
    a.iter().map(|w| w.to_string()).collect()
 }
 
+/// Constructs a map of strings from an array 2-tuples with string slices.
 fn sm(a: &[(&str, &str)]) -> HashMap<String, String> {
    let mut result: HashMap<String, String> = HashMap::new();
    for (k, v) in a.iter() {
@@ -79,12 +107,17 @@ fn sm(a: &[(&str, &str)]) -> HashMap<String, String> {
    result
 }
 
+/// Top-level configuration parsing function.
 pub fn parse(cfg: &ini::Ini) -> Result<Config, String> {
    let mut result = parse_general(cfg)?;
    result.recipients = parse_recipients(cfg)?;
    Ok(result)
 }
 
+/// Takes a string of comma-delimite email addresses and checks their validity.
+///
+/// If they are all valid returns them as a list of strings. Returns various error messages in the
+/// opposite case. See the unit tests for details.
 fn check_emails(header: &str, emails: &str) -> Result<Vec<String>, String> {
    let mut valid = Vec::new();
    let mut invalid = Vec::new();
@@ -116,6 +149,8 @@ fn check_emails(header: &str, emails: &str) -> Result<Vec<String>, String> {
    Ok(valid)
 }
 
+/// Parses the `[general]` config file section, returns a `Config` object that has everything but
+/// the recipient data if successfull.
 fn parse_general(cfg: &ini::Ini) -> Result<Config, String> {
    let mut result = Config {
       from: String::from(""),
@@ -148,13 +183,18 @@ fn parse_general(cfg: &ini::Ini) -> Result<Config, String> {
    Ok(result)
 }
 
+/// Implements a crude, basic sanity check for email addresses. Yay, regular expressions :-P
 fn check_email(email: &str) -> bool {
-   let re_long = Regex::new(r#"^("\s*)?(\S+\s+)*(\S+)\s*"?\s+<\S+@\S+\.\S+>$"#).unwrap();
+   let re_long =
+      Regex::new(r#"^("\s*)?(\S+\s+)*(\S+)\s*"?\s+<\S+@\S+\.\S+>$"#).unwrap();
    let re = Regex::new(r"^\S+@\S+\.\S+$").unwrap();
-   re_long.is_match(email.to_string().trim()) || re.is_match(email.to_string().trim())
+   re_long.is_match(email.to_string().trim())
+      || re.is_match(email.to_string().trim())
 }
 
-fn parse_recipient_data(rdata: &Vec<&str>) -> Result<HashMap<String, String>, String> {
+fn parse_recipient_data(
+   rdata: &Vec<&str>,
+) -> Result<HashMap<String, String>, String> {
    let mut result: Vec<(&str, &str)> = Vec::new();
    for rd in rdata.iter() {
       // split the data, example: "cc:-+inc@gg.org"
@@ -175,6 +215,7 @@ fn parse_recipient_data(rdata: &Vec<&str>) -> Result<HashMap<String, String>, St
    Ok(sm(&result))
 }
 
+/// Parses the `[recipients]` config file section.
 fn parse_recipients(cfg: &ini::Ini) -> Result<Vec<Recipient>, String> {
    let mut result: Vec<Recipient> = Vec::new();
    let section = cfg.section(Some(String::from("recipients"))).unwrap();
@@ -212,12 +253,17 @@ fn parse_recipients(cfg: &ini::Ini) -> Result<Vec<Recipient>, String> {
             names: names,
             data: rd,
          }),
-         Err(msg) => return Err(format!("invalid recipient data for {} ({})", key, msg)),
+         Err(msg) => {
+            return Err(format!("invalid recipient data for {} ({})", key, msg))
+         }
       }
    }
    return Ok(result);
 }
 
+/// Very basic sanity checks on the config.
+///
+/// Does it have the general/recipients sections and does the former have a `From` and a `Subject`?
 pub fn check(cfg: &ini::Ini) -> Result<usize, String> {
    let sections = sa(&["general", "recipients"]);
    let mut num_recipients = 0;
@@ -227,16 +273,24 @@ pub fn check(cfg: &ini::Ini) -> Result<usize, String> {
          Some(props) => {
             if s == "general" {
                if !props.contains_key("From") && !props.contains_key("from") {
-                  return Err(String::from("No *From* header in the general section"));
+                  return Err(String::from(
+                     "No *From* header in the general section",
+                  ));
                }
-               if !props.contains_key("Subject") && !props.contains_key("subject") {
-                  return Err(String::from("No *Subject* in the general section"));
+               if !props.contains_key("Subject")
+                  && !props.contains_key("subject")
+               {
+                  return Err(String::from(
+                     "No *Subject* in the general section",
+                  ));
                }
             }
             if s == "recipients" {
                num_recipients = props.len();
                if num_recipients == 0 {
-                  return Err(String::from("No email recipients found in config file"));
+                  return Err(String::from(
+                     "No email recipients found in config file",
+                  ));
                }
             }
          }
@@ -248,6 +302,7 @@ pub fn check(cfg: &ini::Ini) -> Result<usize, String> {
    Ok(num_recipients)
 }
 
+/// Generates a configuration for a mailing campaign for a user to tweak as needed.
 pub fn gen_config(name: &str, version: &str) -> String {
    format!(
       r#"# {} version {}
@@ -271,6 +326,7 @@ daisy@example.com=Daisy Lila|ORG:-NASA|TITLE:-Dr.|cc:-+inc@gg.org"#,
    )
 }
 
+/// Generates a template for a mailing campaign for a user to tweak as needed.
 pub fn gen_template(name: &str, version: &str) -> String {
    format!(
       r#"FN / LN / EA = first name / last name / email address
@@ -650,7 +706,8 @@ cc=dd@examplecom, weirdo@nsb.gov, oh!no!
 # The 'cc' setting below *redefines* the global 'cc' value above
 @example.com=John Doe Jr.|ORG:-EFF|TITLE:-PhD|cc:-bl@kf.io,info@ex.org"#;
       let cfg = prep_config(file).expect("Failed to set up config");
-      let expected = Err(String::from("invalid *cc* email(s): dd@examplecom, oh!no!"));
+      let expected =
+         Err(String::from("invalid *cc* email(s): dd@examplecom, oh!no!"));
       assert_eq!(expected, parse_general(&cfg));
    }
 
