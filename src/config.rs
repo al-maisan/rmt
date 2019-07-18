@@ -189,6 +189,7 @@ fn parse_recipient_data(rdata: &Vec<&str>) -> Result<HashMap<String, String>, St
       // split the data, example: "cc:-+inc@gg.org"
       let data = rd.split(":-").map(|w| w.trim()).collect::<Vec<&str>>();
       match data.as_slice() {
+         [""] => continue,
          [key, val] => {
             if key.len() == 0 && val.len() == 0 {
                continue;
@@ -646,16 +647,14 @@ a@example.com=A B C|:-Disney"#;
    }
 
    #[test]
-   fn parse_recipient_data_failure_case_with_empty_rdata() {
+   fn parse_recipient_data_happy_case_with_empty_rdata() {
+      let expected = sm(&[("TITLE", "PhD")]);
       let mut args: Vec<&str> = "jd@example.com=John Doe Jr.||TITLE:-PhD|"
          .split("|")
          .collect();
 
       args.remove(0);
-      assert_eq!(
-         Err(String::from("invalid recipient data ()")),
-         parse_recipient_data(&args)
-      );
+      assert_eq!(Ok(expected), parse_recipient_data(&args));
    }
 
    #[test]
