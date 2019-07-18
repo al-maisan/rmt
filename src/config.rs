@@ -4,7 +4,7 @@ use std::collections::HashMap;
 #[derive(Debug)]
 pub struct Config {
    from: String,
-   replyto: String,
+   replyto: Vec<String>,
    cc: Vec<String>,
    subject: String,
    version: String,
@@ -66,7 +66,66 @@ pub fn parse(_cfg: &ini::Ini) -> Result<Config, String> {
    return Err(String::from("not implemented"));
 }
 
-fn parse_general(_cfg: &ini::Ini) -> Result<Config, String> {
+fn check_emails(header: &str, emails: &str) -> Result<Vec<String>, String> {
+   let mut valid = Vec::new();
+   let mut invalid = Vec::new();
+   let data: Vec<String> = emails
+      .split(",")
+      .map(|w| w.trim())
+      .filter(|w| w.len() > 0)
+      .map(|w| w.to_string())
+      .collect();
+   if data.len() == 0 {
+      return Err(format!("no emails for *{}* header", header));
+   }
+   for email in data {
+      if check_email(&email) {
+         valid.push(email)
+      } else {
+         invalid.push(email)
+      }
+   }
+   if invalid.len() > 0 {
+      invalid.sort();
+      return Err(format!(
+         "invalid *{}* email(s): {}",
+         header,
+         invalid.join(", ")
+      ));
+   }
+   valid.sort();
+   Ok(valid)
+}
+
+fn parse_general(cfg: &ini::Ini) -> Result<Config, String> {
+   let mut result = Config {
+      from: String::from(""),
+      replyto: vec![],
+      cc: vec![],
+      subject: String::from(""),
+      version: String::from(""),
+      recipients: vec![],
+   };
+   let section = cfg.section(Some(String::from("general"))).unwrap();
+
+   let keys: Vec<&String> = section.keys().collect();
+
+   for key in keys {
+      let val = section.get(key).unwrap();
+      match key.as_ref() {
+         "From" | "from" => {
+            if !check_email(val) {
+               return Err(format!("invalid *From* email: {}", val));
+            } else {
+               result.from = val.to_string();
+            }
+         }
+         "Reply-To" | "Reply-to" => result.replyto = check_emails(key, val)?,
+         "cc" | "Cc" | "CC" => result.cc = check_emails(key, val)?,
+         "Subject" | "subject" => result.subject = val.to_string(),
+         _ => return Err(format!("invalid configuration datum: *{}*", key)),
+      }
+   }
    return Err(String::from("not implemented"));
 }
 
@@ -86,10 +145,10 @@ fn parse_recipient_data(rdata: &Vec<&str>) -> Result<HashMap<String, String>, St
          continue;
       }
       if key.len() == 0 {
-         return Err(String::from(format!("no key for datum ({})", val)));
+         return Err(format!("no key for datum ({})", val));
       }
       if val.len() == 0 {
-         return Err(String::from(format!("empty value for key ({})", key)));
+         return Err(format!("empty value for key ({})", key));
       }
       result.push((key, val));
    }
@@ -147,8 +206,11 @@ pub fn check(cfg: &ini::Ini) -> Result<usize, String> {
       match cfg.section(Some(s.to_string())) {
          Some(props) => {
             if s == "general" {
-               if !props.contains_key("From") {
-                  return Err(String::from("No from header in the general section"));
+               if !props.contains_key("From") && !props.contains_key("from") {
+                  return Err(String::from("No *From* header in the general section"));
+               }
+               if !props.contains_key("Subject") && !props.contains_key("subject") {
+                  return Err(String::from("No *Subject* in the general section"));
                }
             }
             if s == "recipients" {
@@ -232,6 +294,7 @@ mod tests {
       let file = r#"
 [general]
 From=abc@def.com
+Subject=hello world!
 # this is a comment"#;
       let cfg = prep_config(file).expect("Failed to set up config");;
       assert_eq!(
@@ -245,6 +308,7 @@ From=abc@def.com
       let file = r#"
 [general]
 From=abc@def.com
+Subject=hello world!
 # this is a comment
 [recipients]"#;
       let cfg = prep_config(file).expect("Failed to set up config");;
@@ -262,7 +326,7 @@ From=abc@def.com
 [recipients]"#;
       let cfg = prep_config(file).expect("Failed to set up config");;
       assert_eq!(
-         Err(String::from("No from header in the general section")),
+         Err(String::from("No *From* header in the general section")),
          check(&cfg)
       );
    }
@@ -277,7 +341,21 @@ P2=b
 [recipients]"#;
       let cfg = prep_config(file).expect("Failed to set up config");;
       assert_eq!(
-         Err(String::from("No from header in the general section")),
+         Err(String::from("No *From* header in the general section")),
+         check(&cfg)
+      );
+   }
+
+   #[test]
+   fn check_with_no_subject() {
+      let file = r#"
+[general]
+From=a
+# this is a comment
+[recipients]"#;
+      let cfg = prep_config(file).expect("Failed to set up config");;
+      assert_eq!(
+         Err(String::from("No *Subject* in the general section")),
          check(&cfg)
       );
    }
@@ -287,6 +365,7 @@ P2=b
       let file = r#"
 [general]
 From=abc@def.com
+Subject=hello world!
 # this is a comment
 [recipients]
 a@b.com=A B
@@ -525,7 +604,7 @@ cc=weirdo@nsb.gov, cc@example.com
 # The 'cc' setting below *redefines* the global 'cc' value above
 @example.com=John Doe Jr.|ORG:-EFF|TITLE:-PhD|cc:-bl@kf.io,info@ex.org"#;
       let cfg = prep_config(file).expect("Failed to set up config");
-      let expected = Err(String::from("invalid *Reply-To* email: no@one"));
+      let expected = Err(String::from("invalid *Reply-To* email(s): no@one"));
       assert_eq!(expected, parse_general(&cfg));
    }
 
@@ -542,6 +621,38 @@ cc=dd@examplecom, weirdo@nsb.gov, oh!no!
 @example.com=John Doe Jr.|ORG:-EFF|TITLE:-PhD|cc:-bl@kf.io,info@ex.org"#;
       let cfg = prep_config(file).expect("Failed to set up config");
       let expected = Err(String::from("invalid *cc* email(s): dd@examplecom, oh!no!"));
+      assert_eq!(expected, parse_general(&cfg));
+   }
+
+   #[test]
+   fn parse_general_with_empty_cc_email() {
+      let file = r#"
+[general]
+From=abc@def.com
+Reply-To=no@one.org
+# this is a comment
+Cc=
+[recipients]
+# The 'cc' setting below *redefines* the global 'cc' value above
+@example.com=John Doe Jr.|ORG:-EFF|TITLE:-PhD|cc:-bl@kf.io,info@ex.org"#;
+      let cfg = prep_config(file).expect("Failed to set up config");
+      let expected = Err(String::from("no emails for *Cc* header"));
+      assert_eq!(expected, parse_general(&cfg));
+   }
+
+   #[test]
+   fn parse_general_with_invalid_config_datum() {
+      let file = r#"
+[general]
+From=abc@def.com
+Reply-To=no@one.org
+# this is a comment
+blah=invalid
+[recipients]
+# The 'cc' setting below *redefines* the global 'cc' value above
+@example.com=John Doe Jr.|ORG:-EFF|TITLE:-PhD|cc:-bl@kf.io,info@ex.org"#;
+      let cfg = prep_config(file).expect("Failed to set up config");
+      let expected = Err(String::from("invalid configuration datum: *blah*"));
       assert_eq!(expected, parse_general(&cfg));
    }
 }
