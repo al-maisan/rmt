@@ -33,5 +33,6 @@ fn main() {
          Ok(_) => println!("* config looks good"),
          Err(msg) => println!("!! invalid config -- {:?}", msg),
       }
+      let _cfg = config::parse(&i);
    }
 }
