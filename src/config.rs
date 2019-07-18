@@ -56,7 +56,7 @@ impl ToString for Config {
 }
 
 #[derive(Debug)]
-/// The `Config` struct holds per-recipient data
+/// The `Recipient` struct holds per-recipient data
 pub struct Recipient {
    /// This is the recipient's email address
    email: String,
@@ -98,7 +98,7 @@ fn sa(a: &[&str]) -> Vec<String> {
    a.iter().map(|w| w.to_string()).collect()
 }
 
-/// Constructs a map of strings from an array 2-tuples with string slices.
+/// Constructs a map of `String` from an array 2-tuples with string slices.
 fn sm(a: &[(&str, &str)]) -> HashMap<String, String> {
    let mut result: HashMap<String, String> = HashMap::new();
    for (k, v) in a.iter() {
@@ -114,7 +114,7 @@ pub fn parse(cfg: &ini::Ini) -> Result<Config, String> {
    Ok(result)
 }
 
-/// Takes a string of comma-delimite email addresses and checks their validity.
+/// Takes a string with comma-delimited email addresses and checks their validity.
 ///
 /// If they are all valid returns them as a list of strings. Returns various error messages in the
 /// opposite case. See the unit tests for details.
@@ -192,6 +192,7 @@ fn check_email(email: &str) -> bool {
       || re.is_match(email.to_string().trim())
 }
 
+/// Parses the optional per-recipient data (delimited by `':-'`) if present.
 fn parse_recipient_data(
    rdata: &Vec<&str>,
 ) -> Result<HashMap<String, String>, String> {
