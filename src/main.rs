@@ -33,6 +33,10 @@ fn main() {
          Ok(_) => println!("* config looks good"),
          Err(msg) => println!("!! invalid config -- {:?}", msg),
       }
-      let _cfg = config::parse(&i);
+      let _cfg: config::Config;
+      match config::parse(&i) {
+         Ok(cfg) => _cfg = cfg,
+         Err(msg) => panic!("!! config parsing error, {}", msg),
+      }
    }
 }
