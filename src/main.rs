@@ -3,6 +3,7 @@ extern crate clap;
 use clap::App;
 use ini::Ini;
 mod config;
+use std::process;
 
 fn main() {
    let yaml = load_yaml!("cli.yml");
@@ -31,12 +32,18 @@ fn main() {
       let i = Ini::load_from_file(config).unwrap();
       match config::check(&i) {
          Ok(_) => println!("* config looks good"),
-         Err(msg) => println!("!! invalid config -- {:?}", msg),
+         Err(msg) => {
+            println!("!! invalid config -- {:?}", msg);
+            process::exit(1)
+         }
       }
       let _cfg: config::Config;
       match config::parse(&i) {
          Ok(cfg) => _cfg = cfg,
-         Err(msg) => panic!("!! config parsing error, {}", msg),
+         Err(msg) => {
+            println!("!! config parsing error, {}", msg);
+            process::exit(2)
+         }
       }
    }
 }
