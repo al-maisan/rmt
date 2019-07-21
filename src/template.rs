@@ -37,14 +37,14 @@ pub fn new(template: &str) -> Template {
    result
 }
 
-/// Constructs a set of `String` from an array of string slices.
-fn ss(a: &[&str]) -> HashSet<String> {
-   a.iter().map(|w| w.to_string()).collect()
-}
-
 #[cfg(test)]
 mod tests {
    use super::*;
+
+   /// Constructs a set of `String` from an array of string slices.
+   fn ss(a: &[&str]) -> HashSet<String> {
+      a.iter().map(|w| w.to_string()).collect()
+   }
 
    #[test]
    fn new_with_empty_string() {

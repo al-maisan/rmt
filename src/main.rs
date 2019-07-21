@@ -4,6 +4,18 @@ use clap::App;
 mod config;
 mod template;
 
+macro_rules! ee {
+   ($res:expr) => {
+      match $res {
+         Ok(v) => v,
+         Err(m) => {
+            println!("!! error: {}", m);
+            ::std::process::exit(1)
+         }
+      }
+   };
+}
+
 fn main() {
    let yaml = load_yaml!("cli.yml");
    let app = App::from_yaml(yaml)
@@ -28,8 +40,8 @@ fn main() {
          println!("* run the mailer");
       }
       let config_path = matches.value_of("config").unwrap();
-      let _cfg = config::instantiate(config_path).unwrap();
+      let _cfg = ee!(config::instantiate(config_path));
       let template_path = matches.value_of("template").unwrap();
-      let _tmpl = template::instantiate(template_path).unwrap();
+      let _tmpl = ee!(template::instantiate(template_path));
    }
 }
