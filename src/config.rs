@@ -54,12 +54,12 @@ impl ToString for Config {
 /// The `Recipient` struct holds per-recipient data
 pub struct Recipient {
    /// This is the recipient's email address
-   email: String,
+   pub email: String,
    /// This is a list of the recipient's names
-   names: Vec<String>,
+   pub names: Vec<String>,
    /// This is a map with miscellaneous optional metadata that was defined for the recipient in
    /// question
-   data: HashMap<String, String>,
+   pub data: HashMap<String, String>,
 }
 
 impl PartialEq for Recipient {
@@ -93,12 +93,12 @@ pub fn instantiate(config_path: &str) -> Result<Config, String> {
 }
 
 /// Constructs a list of `String` from an array of string slices.
-fn sa(a: &[&str]) -> Vec<String> {
+pub fn sa(a: &[&str]) -> Vec<String> {
    a.iter().map(|w| w.to_string()).collect()
 }
 
 /// Constructs a map of `String` from an array 2-tuples with string slices.
-fn sm(a: &[(&str, &str)]) -> HashMap<String, String> {
+pub fn sm(a: &[(&str, &str)]) -> HashMap<String, String> {
    let mut result: HashMap<String, String> = HashMap::new();
    for (k, v) in a.iter() {
       result.insert(k.to_string(), v.to_string());

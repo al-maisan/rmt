@@ -1,3 +1,4 @@
+use crate::config::Recipient;
 use regex::Regex;
 use std::collections::HashSet;
 use std::fs;
@@ -36,10 +37,39 @@ pub fn new(template: &str) -> Template {
    }
    result
 }
+impl Template {
+   fn check_recipents(&self, recipients: &Vec<Recipient>) -> Result<(), Vec<String>> {
+      let mut errors = vec![];
+      for rec in recipients {
+         let rec_keys: HashSet<String> = rec.data.keys().cloned().collect();
+         if !rec_keys.is_subset(&self.keys) {
+            let mut missing_keys: Vec<String> = self
+               .keys
+               .iter()
+               .cloned()
+               .filter(|k| !rec_keys.contains(k))
+               .collect();
+            missing_keys.sort();
+            errors.push(format!(
+               "{} is missing the following key(s): {}",
+               rec.email,
+               missing_keys.as_slice().join(", ")
+            ));
+         }
+      }
+      if errors.len() > 0 {
+         return Err(errors);
+      } else {
+         return Ok(());
+      }
+   }
+}
 
 #[cfg(test)]
 mod tests {
    use super::*;
+   use crate::config::sa;
+   use crate::config::sm;
 
    /// Constructs a set of `String` from an array of string slices.
    fn ss(a: &[&str]) -> HashSet<String> {
@@ -120,5 +150,67 @@ Sent with rmt version 0.1.2, see https://301.mx/rmt for details"#;
          keys: ss(&["FN", "H3"]),
       };
       assert_eq!(expected, new(template));
+   }
+
+   #[test]
+   fn check_recipents_with_1_missing_key() {
+      let mut recipients = Vec::new();
+      recipients.push(Recipient {
+         email: String::from("daisy@example.com"),
+         names: sa(&["Daisy", "Lila"]),
+         data: sm(&[("ORG", "NASA"), ("TITLE", "Dr."), ("cc", "+inc@gg.org")]),
+      });
+      recipients.push(Recipient {
+         email: String::from("jd@example.com"),
+         names: sa(&["John", "Doe", "Jr."]),
+         data: sm(&[
+            ("ORG", "EFF"),
+            ("TITLE", "PhD"),
+            ("cc", "bl@kf.io,info@ex.org"),
+         ]),
+      });
+      recipients.push(Recipient {
+         email: String::from("mm@gmail.com"),
+         names: sa(&["Mickey", "Mouse"]),
+         data: sm(&[("ORG", "Disney")]),
+      });
+      let template = new("Missing key: %MK%");
+      let expected: Vec<String> = sa(&[
+         "daisy@example.com is missing the following key(s): MK",
+         "jd@example.com is missing the following key(s): MK",
+         "mm@gmail.com is missing the following key(s): MK",
+      ]);
+      assert_eq!(Err(expected), template.check_recipents(&recipients));
+   }
+
+   #[test]
+   fn check_recipents_with_multiple_missing_key() {
+      let mut recipients = Vec::new();
+      recipients.push(Recipient {
+         email: String::from("daisy@example.com"),
+         names: sa(&["Daisy", "Lila"]),
+         data: sm(&[("MK", "NASA"), ("TITLE", "Dr."), ("cc", "+inc@gg.org")]),
+      });
+      recipients.push(Recipient {
+         email: String::from("jd@example.com"),
+         names: sa(&["John", "Doe", "Jr."]),
+         data: sm(&[
+            ("ORG", "EFF"),
+            ("TITLE", "PhD"),
+            ("M2", "bl@kf.io,info@ex.org"),
+         ]),
+      });
+      recipients.push(Recipient {
+         email: String::from("mm@gmail.com"),
+         names: sa(&["Mickey", "Mouse"]),
+         data: sm(&[("ORG", "Disney")]),
+      });
+      let template = new("Missing key: %MK% %M2% %m3%");
+      let expected: Vec<String> = sa(&[
+         "daisy@example.com is missing the following key(s): M2, m3",
+         "jd@example.com is missing the following key(s): MK, m3",
+         "mm@gmail.com is missing the following key(s): M2, MK, m3",
+      ]);
+      assert_eq!(Err(expected), template.check_recipents(&recipients));
    }
 }
