@@ -2,8 +2,9 @@
 extern crate clap;
 use clap::App;
 use ini::Ini;
-mod config;
 use std::process;
+mod config;
+mod template;
 
 fn main() {
    let yaml = load_yaml!("cli.yml");
