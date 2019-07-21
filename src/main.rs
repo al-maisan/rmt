@@ -1,8 +1,6 @@
 #[macro_use]
 extern crate clap;
 use clap::App;
-use ini::Ini;
-use std::process;
 mod config;
 mod template;
 
@@ -29,22 +27,9 @@ fn main() {
       } else {
          println!("* run the mailer");
       }
-      let config = matches.value_of("config").unwrap();
-      let i = Ini::load_from_file(config).unwrap();
-      match config::check(&i) {
-         Ok(_) => println!("* config looks good"),
-         Err(msg) => {
-            println!("!! invalid config -- {:?}", msg);
-            process::exit(1)
-         }
-      }
-      let _cfg: config::Config;
-      match config::parse(&i) {
-         Ok(cfg) => _cfg = cfg,
-         Err(msg) => {
-            println!("!! config parsing error, {}", msg);
-            process::exit(2)
-         }
-      }
+      let config_path = matches.value_of("config").unwrap();
+      let _cfg = config::instantiate(config_path).unwrap();
+      let template_path = matches.value_of("template").unwrap();
+      let _tmpl = template::instantiate(template_path).unwrap();
    }
 }

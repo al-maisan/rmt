@@ -1,4 +1,5 @@
 /// The `config` module implements the logic for parsing config files.
+use ini::Ini;
 use regex::Regex;
 use std::collections::HashMap;
 
@@ -83,6 +84,12 @@ impl ToString for Recipient {
          dv.join(", "),
       )
    }
+}
+
+pub fn instantiate(config_path: &str) -> Result<Config, String> {
+   let i = Ini::load_from_file(config_path).unwrap();
+   check(&i)?;
+   parse(&i)
 }
 
 /// Constructs a list of `String` from an array of string slices.

@@ -1,5 +1,7 @@
 use regex::Regex;
 use std::collections::HashSet;
+use std::fs;
+use std::io;
 
 #[derive(Debug)]
 /// The `Template` struct holds the template data.
@@ -16,6 +18,11 @@ impl PartialEq for Template {
    fn eq(&self, other: &Self) -> bool {
       self.text == other.text && self.keys == other.keys
    }
+}
+
+pub fn instantiate(template_path: &str) -> Result<Template, io::Error> {
+   let contents = fs::read_to_string(template_path)?;
+   return Ok(new(&contents));
 }
 
 pub fn new(template: &str) -> Template {
