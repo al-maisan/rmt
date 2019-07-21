@@ -50,11 +50,12 @@ mod tests {
 
    #[test]
    fn new_with_no_keys() {
+      let template = "Hello Sir! May I get you interested in..?";
       let expected = Template {
-         text: String::from("Hello Sir! May I get you interested in..?"),
+         text: String::from(template),
          keys: HashSet::new(),
       };
-      assert_eq!(expected, new("Hello Sir! May I get you interested in..?"));
+      assert_eq!(expected, new(template));
    }
 
    #[test]
@@ -76,13 +77,41 @@ Sent with rmt version 0.1.2, see https://301.mx/rmt for details"#;
 
    #[test]
    fn new_with_invalid_keys() {
+      let template = "Hello Sir %FN%! How about %FN or EA% / %%HM%??";
       let expected = Template {
-         text: String::from("Hello Sir %FN%! How about %FN or EA% / %%HM%??"),
+         text: String::from(template),
          keys: ss(&["FN", "HM"]),
       };
-      assert_eq!(
-         expected,
-         new("Hello Sir %FN%! How about %FN or EA% / %%HM%??")
-      );
+      assert_eq!(expected, new(template));
+   }
+
+   #[test]
+   fn new_with_empty_keys() {
+      let template = "Hello Sir %FN%! How about %FN / %% / % / %HM%%??";
+      let expected = Template {
+         text: String::from(template),
+         keys: ss(&["FN", "HM"]),
+      };
+      assert_eq!(expected, new(template));
+   }
+
+   #[test]
+   fn new_with_keys_containing_digits() {
+      let template = "Hello Sir %FN%! How about %FN or EA% / %%H3%??";
+      let expected = Template {
+         text: String::from(template),
+         keys: ss(&["FN", "H3"]),
+      };
+      assert_eq!(expected, new(template));
+   }
+
+   #[test]
+   fn new_with_keys_containing_non_alphanumerics() {
+      let template = "Hello Sir %FN%! How about %--% or %%% / %H3%%??";
+      let expected = Template {
+         text: String::from(template),
+         keys: ss(&["FN", "H3"]),
+      };
+      assert_eq!(expected, new(template));
    }
 }
