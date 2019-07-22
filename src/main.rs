@@ -52,9 +52,9 @@ fn main() {
       match tmpl.check_recipents(&cfg.recipients) {
          Ok(()) => println!("* recpient data looks good"),
          Err(errors) => {
-            println!("!! error some recipient(s) are missing data needed in the template");
+            println!("!! error: recipients are missing data needed by the template");
             for err in errors {
-               println!("    - {}", err)
+               println!("   - {}", err)
             }
             ::std::process::exit(2)
          }
