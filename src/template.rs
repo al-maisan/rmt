@@ -37,22 +37,23 @@ pub fn new(template: &str) -> Template {
    }
    result
 }
+
 impl Template {
-   fn check_recipents(&self, recipients: &Vec<Recipient>) -> Result<(), Vec<String>> {
+   pub fn check_recipents(&self, recipients: &Vec<Recipient>) -> Result<(), Vec<String>> {
       let mut errors = vec![];
-      for rec in recipients {
-         let rec_keys: HashSet<String> = rec.data.keys().cloned().collect();
-         if !rec_keys.is_subset(&self.keys) {
+      for rcp in recipients {
+         let rcp_keys: HashSet<String> = rcp.data.keys().cloned().collect();
+         if !self.keys.is_subset(&rcp_keys) {
             let mut missing_keys: Vec<String> = self
                .keys
                .iter()
                .cloned()
-               .filter(|k| !rec_keys.contains(k))
+               .filter(|k| !rcp_keys.contains(k))
                .collect();
             missing_keys.sort();
             errors.push(format!(
                "{} is missing the following key(s): {}",
-               rec.email,
+               rcp.email,
                missing_keys.as_slice().join(", ")
             ));
          }
@@ -96,7 +97,7 @@ mod tests {
    }
 
    #[test]
-   fn new_with_happy_path() {
+   fn new_happy_case() {
       let template = r#"FN / LN / EA = first name / last name / email address
 
 Hello %FN% // %LN%, how are things going at %ORG%?
@@ -212,5 +213,49 @@ Sent with rmt version 0.1.2, see https://301.mx/rmt for details"#;
          "mm@gmail.com is missing the following key(s): M2, MK, m3",
       ]);
       assert_eq!(Err(expected), template.check_recipents(&recipients));
+   }
+
+   #[test]
+   fn check_recipents_happy_case() {
+      let mut recipients = Vec::new();
+      recipients.push(Recipient {
+         email: String::from("daisy@example.com"),
+         names: sa(&["Daisy", "Lila"]),
+         data: sm(&[("ORG", "NASA"), ("TITLE", "Dr."), ("cc", "+inc@gg.org")]),
+      });
+      recipients.push(Recipient {
+         email: String::from("jd@example.com"),
+         names: sa(&["John", "Doe", "Jr."]),
+         data: sm(&[("ORG", "EFF"), ("TITLE", "PhD")]),
+      });
+      recipients.push(Recipient {
+         email: String::from("mm@gmail.com"),
+         names: sa(&["Mickey", "Mouse"]),
+         data: sm(&[("ORG", "Disney")]),
+      });
+      let template = new("only key: %ORG%");
+      assert_eq!(Ok(()), template.check_recipents(&recipients));
+   }
+
+   #[test]
+   fn check_recipents_happy_case_no_keys_in_template() {
+      let mut recipients = Vec::new();
+      recipients.push(Recipient {
+         email: String::from("daisy@example.com"),
+         names: sa(&["Daisy", "Lila"]),
+         data: sm(&[("ORG", "NASA"), ("TITLE", "Dr."), ("cc", "+inc@gg.org")]),
+      });
+      recipients.push(Recipient {
+         email: String::from("jd@example.com"),
+         names: sa(&["John", "Doe", "Jr."]),
+         data: sm(&[("ORG", "EFF"), ("TITLE", "PhD")]),
+      });
+      recipients.push(Recipient {
+         email: String::from("mm@gmail.com"),
+         names: sa(&["Mickey", "Mouse"]),
+         data: sm(&[("ORG", "Disney")]),
+      });
+      let template = new("no keys in template");
+      assert_eq!(Ok(()), template.check_recipents(&recipients));
    }
 }
