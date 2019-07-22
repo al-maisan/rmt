@@ -40,25 +40,31 @@ pub fn new(template: &str) -> Template {
 
 impl Template {
    pub fn check_recipents(&self, recipients: &Vec<Recipient>) -> Result<(), Vec<String>> {
+      let auto_keys: HashSet<String> = ["_EA", "_FN", "_LN", "_TN", "_TV"]
+         .iter()
+         .map(|w| w.to_string())
+         .collect();
+      let user_defined_keys: HashSet<String> = self
+         .keys
+         .iter()
+         .cloned()
+         .filter(|k| !auto_keys.contains(k))
+         .collect();
       let mut errors = vec![];
       for rcp in recipients {
          let rcp_keys: HashSet<String> = rcp.data.keys().cloned().collect();
-         if !self.keys.is_subset(&rcp_keys) {
-            let mut missing_keys: Vec<String> = self
-               .keys
+         if !user_defined_keys.is_subset(&rcp_keys) {
+            let mut missing_keys: Vec<String> = user_defined_keys
                .iter()
                .cloned()
-               .filter(|k| !rcp_keys.contains(k) && !k.starts_with("_"))
+               .filter(|k| !rcp_keys.contains(k))
                .collect();
             missing_keys.sort();
-            if missing_keys.len() > 0 {
-               // only complain about user defined keys, not the auto ones
-               errors.push(format!(
-                  "{} is missing the following key(s): {}",
-                  rcp.email,
-                  missing_keys.as_slice().join(", ")
-               ));
-            }
+            errors.push(format!(
+               "{} is missing the following key(s): {}",
+               rcp.email,
+               missing_keys.as_slice().join(", ")
+            ));
          }
       }
       if errors.len() > 0 {
@@ -282,5 +288,51 @@ Sent with rmt version 0.1.2, see https://301.mx/rmt for details"#;
       });
       let template = new("auto keys only: %_FN%, %_LN%, %_EA% !!");
       assert_eq!(Ok(()), template.check_recipents(&recipients));
+   }
+
+   #[test]
+   fn check_recipents_happy_case_with_mixed_keys() {
+      let mut recipients = Vec::new();
+      recipients.push(Recipient {
+         email: String::from("daisy@example.com"),
+         names: sa(&["Daisy", "Lila"]),
+         data: sm(&[("_USER_DEFINED", "dec")]),
+      });
+      recipients.push(Recipient {
+         email: String::from("jd@example.com"),
+         names: sa(&["John", "Doe", "Jr."]),
+         data: sm(&[("_USER_DEFINED", "jec")]),
+      });
+      recipients.push(Recipient {
+         email: String::from("mm@gmail.com"),
+         names: sa(&["Mickey", "Mouse"]),
+         data: sm(&[("_USER_DEFINED", "mgc")]),
+      });
+      let template = new("auto keys only: %_FN%, %_USER_DEFINED%!!");
+      assert_eq!(Ok(()), template.check_recipents(&recipients));
+   }
+
+   #[test]
+   fn check_recipents_failure_with_mixed_keys() {
+      let mut recipients = Vec::new();
+      recipients.push(Recipient {
+         email: String::from("daisy@example.com"),
+         names: sa(&["Daisy", "Lila"]),
+         data: sm(&[("USER_DEFINED", "dec")]),
+      });
+      recipients.push(Recipient {
+         email: String::from("jd@example.com"),
+         names: sa(&["John", "Doe", "Jr."]),
+         data: sm(&[("_USER_DEFINED", "jec")]),
+      });
+      recipients.push(Recipient {
+         email: String::from("mm@gmail.com"),
+         names: sa(&["Mickey", "Mouse"]),
+         data: sm(&[("_USER_DEFINED", "mgc")]),
+      });
+      let template = new("auto keys only: %_FN%, %_USER_DEFINED%!!");
+      let expected: Vec<String> =
+         sa(&["daisy@example.com is missing the following key(s): _USER_DEFINED"]);
+      assert_eq!(Err(expected), template.check_recipents(&recipients));
    }
 }
