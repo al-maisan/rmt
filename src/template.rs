@@ -48,14 +48,17 @@ impl Template {
                .keys
                .iter()
                .cloned()
-               .filter(|k| !rcp_keys.contains(k))
+               .filter(|k| !rcp_keys.contains(k) && !k.starts_with("_"))
                .collect();
             missing_keys.sort();
-            errors.push(format!(
-               "{} is missing the following key(s): {}",
-               rcp.email,
-               missing_keys.as_slice().join(", ")
-            ));
+            if missing_keys.len() > 0 {
+               // only complain about user defined keys, not the auto ones
+               errors.push(format!(
+                  "{} is missing the following key(s): {}",
+                  rcp.email,
+                  missing_keys.as_slice().join(", ")
+               ));
+            }
          }
       }
       if errors.len() > 0 {
@@ -256,6 +259,28 @@ Sent with rmt version 0.1.2, see https://301.mx/rmt for details"#;
          data: sm(&[("ORG", "Disney")]),
       });
       let template = new("no keys in template");
+      assert_eq!(Ok(()), template.check_recipents(&recipients));
+   }
+
+   #[test]
+   fn check_recipents_happy_case_with_auto_keys_only() {
+      let mut recipients = Vec::new();
+      recipients.push(Recipient {
+         email: String::from("daisy@example.com"),
+         names: sa(&["Daisy", "Lila"]),
+         data: sm(&[]),
+      });
+      recipients.push(Recipient {
+         email: String::from("jd@example.com"),
+         names: sa(&["John", "Doe", "Jr."]),
+         data: sm(&[]),
+      });
+      recipients.push(Recipient {
+         email: String::from("mm@gmail.com"),
+         names: sa(&["Mickey", "Mouse"]),
+         data: sm(&[]),
+      });
+      let template = new("auto keys only: %_FN%, %_LN%, %_EA% !!");
       assert_eq!(Ok(()), template.check_recipents(&recipients));
    }
 }

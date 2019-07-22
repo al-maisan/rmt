@@ -40,8 +40,20 @@ fn main() {
          println!("* run the mailer");
       }
       let config_path = matches.value_of("config").unwrap();
-      let _cfg = ee!(config::instantiate(config_path));
       let template_path = matches.value_of("template").unwrap();
-      let _tmpl = ee!(template::instantiate(template_path));
+
+      let cfg = ee!(config::instantiate(config_path));
+      let tmpl = ee!(template::instantiate(template_path));
+
+      match tmpl.check_recipents(&cfg.recipients) {
+         Ok(()) => println!("* recpient data looks good"),
+         Err(errors) => {
+            println!("!! error some recipient(s) are missing data needed in the template");
+            for err in errors {
+               println!("    - {}", err)
+            }
+            ::std::process::exit(2)
+         }
+      }
    }
 }

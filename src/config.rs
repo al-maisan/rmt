@@ -8,17 +8,19 @@ use std::collections::HashMap;
 /// successfully.
 pub struct Config {
    /// The 'From' email header value (a valid email address)
-   from: String,
+   pub from: String,
    /// The email subject
-   subject: String,
+   pub subject: String,
    /// A list of 'Cc' email addresses
-   cc: Vec<String>,
+   pub cc: Vec<String>,
    /// A list of 'Reply-To' email addresses
-   replyto: Vec<String>,
+   pub replyto: Vec<String>,
+   /// The name of the tool
+   pub tool_name: String,
    /// The version of the tool
-   version: String,
+   pub tool_version: String,
    /// A list of recipients who should recaive the email
-   recipients: Vec<Recipient>,
+   pub recipients: Vec<Recipient>,
 }
 
 impl PartialEq for Config {
@@ -156,7 +158,8 @@ fn parse_general(cfg: &ini::Ini) -> Result<Config, String> {
       replyto: vec![],
       cc: vec![],
       subject: String::from(""),
-      version: String::from(""),
+      tool_name: String::from(""),
+      tool_version: String::from(""),
       recipients: vec![],
    };
    let section = cfg.section(Some(String::from("general"))).unwrap();
