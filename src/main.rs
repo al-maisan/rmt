@@ -42,7 +42,11 @@ fn main() {
       let config_path = matches.value_of("config").unwrap();
       let template_path = matches.value_of("template").unwrap();
 
-      let cfg = ee!(config::instantiate(config_path));
+      let cfg = ee!(config::instantiate(
+         config_path,
+         crate_name!(),
+         crate_version!()
+      ));
       let tmpl = ee!(template::instantiate(template_path));
 
       match tmpl.check_recipents(&cfg.recipients) {

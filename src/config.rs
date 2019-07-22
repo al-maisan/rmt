@@ -88,10 +88,14 @@ impl ToString for Recipient {
    }
 }
 
-pub fn instantiate(config_path: &str) -> Result<Config, String> {
+pub fn instantiate(
+   config_path: &str,
+   tool_name: &str,
+   tool_version: &str,
+) -> Result<Config, String> {
    let i = Ini::load_from_file(config_path).unwrap();
    check(&i)?;
-   parse(&i)
+   parse(&i, tool_name, tool_version)
 }
 
 /// Constructs a list of `String` from an array of string slices.
@@ -109,8 +113,8 @@ pub fn sm(a: &[(&str, &str)]) -> HashMap<String, String> {
 }
 
 /// Top-level configuration parsing function.
-pub fn parse(cfg: &ini::Ini) -> Result<Config, String> {
-   let mut result = parse_general(cfg)?;
+pub fn parse(cfg: &ini::Ini, tool_name: &str, tool_version: &str) -> Result<Config, String> {
+   let mut result = parse_general(cfg, tool_name, tool_version)?;
    result.recipients = parse_recipients(cfg)?;
    Ok(result)
 }
@@ -152,14 +156,14 @@ fn check_emails(header: &str, emails: &str) -> Result<Vec<String>, String> {
 
 /// Parses the `[general]` config file section, returns a `Config` object that has everything but
 /// the recipient data if successfull.
-fn parse_general(cfg: &ini::Ini) -> Result<Config, String> {
+fn parse_general(cfg: &ini::Ini, tool_name: &str, tool_version: &str) -> Result<Config, String> {
    let mut result = Config {
       from: String::from(""),
       replyto: vec![],
       cc: vec![],
       subject: String::from(""),
-      tool_name: String::from(""),
-      tool_version: String::from(""),
+      tool_name: String::from(tool_name),
+      tool_version: String::from(tool_version),
       recipients: vec![],
    };
    let section = cfg.section(Some(String::from("general"))).unwrap();
@@ -692,7 +696,7 @@ cc=weirdo@nsb.gov, cc@example.com
 @example.com=John Doe Jr.|ORG:-EFF|TITLE:-PhD|cc:-bl@kf.io,info@ex.org"#;
       let cfg = prep_config(file).expect("Failed to set up config");
       let expected = Err(String::from("invalid *From* email: abc@defcom"));
-      assert_eq!(expected, parse_general(&cfg));
+      assert_eq!(expected, parse_general(&cfg, "rmt", "0.1.2"));
    }
 
    #[test]
@@ -708,7 +712,7 @@ cc=weirdo@nsb.gov, cc@example.com
 @example.com=John Doe Jr.|ORG:-EFF|TITLE:-PhD|cc:-bl@kf.io,info@ex.org"#;
       let cfg = prep_config(file).expect("Failed to set up config");
       let expected = Err(String::from("invalid *Reply-To* email(s): no@one"));
-      assert_eq!(expected, parse_general(&cfg));
+      assert_eq!(expected, parse_general(&cfg, "rmt", "0.1.2"));
    }
 
    #[test]
@@ -724,7 +728,7 @@ cc=dd@examplecom, weirdo@nsb.gov, oh!no!
 @example.com=John Doe Jr.|ORG:-EFF|TITLE:-PhD|cc:-bl@kf.io,info@ex.org"#;
       let cfg = prep_config(file).expect("Failed to set up config");
       let expected = Err(String::from("invalid *cc* email(s): dd@examplecom, oh!no!"));
-      assert_eq!(expected, parse_general(&cfg));
+      assert_eq!(expected, parse_general(&cfg, "rmt", "0.1.2"));
    }
 
    #[test]
@@ -740,7 +744,7 @@ Cc=
 @example.com=John Doe Jr.|ORG:-EFF|TITLE:-PhD|cc:-bl@kf.io,info@ex.org"#;
       let cfg = prep_config(file).expect("Failed to set up config");
       let expected = Err(String::from("no emails for *Cc* header"));
-      assert_eq!(expected, parse_general(&cfg));
+      assert_eq!(expected, parse_general(&cfg, "rmt", "0.1.2"));
    }
 
    #[test]
@@ -756,7 +760,7 @@ blah=invalid
 @example.com=John Doe Jr.|ORG:-EFF|TITLE:-PhD|cc:-bl@kf.io,info@ex.org"#;
       let cfg = prep_config(file).expect("Failed to set up config");
       let expected = Err(String::from("invalid configuration datum: *blah*"));
-      assert_eq!(expected, parse_general(&cfg));
+      assert_eq!(expected, parse_general(&cfg, "rmt", "0.1.2"));
    }
 
    #[test]
@@ -780,7 +784,7 @@ mm@gmail.com=Mickey Mouse|ORG:-Disney   # trailing comment!!
 daisy@example.com=Daisy Lila|ORG:-NASA|TITLE:-Dr.|cc:-+inc@gg.org"#;
       let cfg = prep_config(file).expect("Failed to set up config");
       let expected = "from: Frodo Baggins <rts@example.com>, subject: Hello %FN%!, cc: cc@example.com, weirdo@nsb.gov, replyto: John Doe <jd@mail.com>, recipients: {email: daisy@example.com, names: Daisy, Lila, data: ORG => NASA, TITLE => Dr., cc => +inc@gg.org}, {email: jd@example.com, names: John, Doe, Jr., data: ORG => EFF, TITLE => PhD, cc => bl@kf.io,info@ex.org}, {email: mm@gmail.com, names: Mickey, Mouse, data: ORG => Disney}";
-      let actual = parse(&cfg).expect("Failed to parse config");
+      let actual = parse(&cfg, "rmt", "0.1.2").expect("Failed to parse config");
 
       assert_eq!(expected, actual.to_string());
    }
