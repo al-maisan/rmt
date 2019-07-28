@@ -4,9 +4,9 @@ use regex::Regex;
 use std::collections::HashMap;
 
 #[derive(Debug)]
-/// The `Config` struct holds the contents of the config file after the latter was parsed
-/// successfully.
-pub struct Config {
+/// The `GData` struct holds the contents of the [general] section that may be overridden for
+/// particular recipients.
+pub struct GData {
    /// The 'From' email header value (a valid email address)
    pub from: String,
    /// The email subject
@@ -15,7 +15,38 @@ pub struct Config {
    pub cc: Vec<String>,
    /// A list of 'Reply-To' email addresses
    pub replyto: Vec<String>,
-   /// The name of the tool
+}
+
+impl PartialEq for GData {
+   /// Makes it possible to compare instances of `GData`
+   fn eq(&self, other: &Self) -> bool {
+      self.from == other.from
+         && self.replyto == other.replyto
+         && self.cc == other.cc
+         && self.subject == other.subject
+   }
+}
+
+impl ToString for GData {
+   /// Makes it possible to print instances of `GData`
+   fn to_string(&self) -> String {
+      let mut result = format!("from: {}, subject: {}", self.from, self.subject);
+      if self.cc.len() > 0 {
+         result.push_str(format!(", cc: {}", self.cc.join(", ")).as_ref());
+      }
+      if self.replyto.len() > 0 {
+         result.push_str(format!(", replyto: {}", self.replyto.join(", ")).as_ref());
+      }
+      result
+   }
+}
+
+#[derive(Debug)]
+/// The `Config` struct holds the contents of the config file after the latter was parsed
+/// successfully.
+pub struct Config {
+   /// The data in the [general] section that may be overidden for recipients
+   pub gdata: GData,
    pub tool_name: String,
    /// The version of the tool
    pub tool_version: String,
@@ -26,24 +57,14 @@ pub struct Config {
 impl PartialEq for Config {
    /// Makes it possible to compare instances of `Config`
    fn eq(&self, other: &Self) -> bool {
-      self.from == other.from
-         && self.replyto == other.replyto
-         && self.cc == other.cc
-         && self.subject == other.subject
-         && self.recipients == other.recipients
+      self.gdata == other.gdata && self.recipients == other.recipients
    }
 }
 
 impl ToString for Config {
    /// Makes it possible to print instances of `Config`
    fn to_string(&self) -> String {
-      let mut result = format!("from: {}, subject: {}", self.from, self.subject);
-      if self.cc.len() > 0 {
-         result.push_str(format!(", cc: {}", self.cc.join(", ")).as_ref());
-      }
-      if self.replyto.len() > 0 {
-         result.push_str(format!(", replyto: {}", self.replyto.join(", ")).as_ref());
-      }
+      let mut result = self.gdata.to_string();
       result.push_str(format!(", recipients: {{{}}}", self.recipients[0].to_string()).as_ref());
       for recipient in self.recipients.iter().skip(1) {
          result.push_str(format!(", {{{}}}", recipient.to_string()).as_ref());
@@ -59,6 +80,7 @@ pub struct Recipient {
    pub email: String,
    /// This is a list of the recipient's names
    pub names: Vec<String>,
+   pub gdata: Option<GData>,
    /// This is a map with miscellaneous optional metadata that was defined for the recipient in
    /// question
    pub data: HashMap<String, String>,
@@ -157,14 +179,11 @@ fn check_emails(header: &str, emails: &str) -> Result<Vec<String>, String> {
 /// Parses the `[general]` config file section, returns a `Config` object that has everything but
 /// the recipient data if successfull.
 fn parse_general(cfg: &ini::Ini, tool_name: &str, tool_version: &str) -> Result<Config, String> {
-   let mut result = Config {
+   let mut gdata = GData {
       from: String::from(""),
       replyto: vec![],
       cc: vec![],
       subject: String::from(""),
-      tool_name: String::from(tool_name),
-      tool_version: String::from(tool_version),
-      recipients: vec![],
    };
    let section = cfg.section(Some(String::from("general"))).unwrap();
 
@@ -177,15 +196,21 @@ fn parse_general(cfg: &ini::Ini, tool_name: &str, tool_version: &str) -> Result<
             if !check_email(val) {
                return Err(format!("invalid *From* email: {}", val));
             } else {
-               result.from = val.to_string();
+               gdata.from = val.to_string();
             }
          }
-         "Reply-To" | "Reply-to" => result.replyto = check_emails(key, val)?,
-         "cc" | "Cc" | "CC" => result.cc = check_emails(key, val)?,
-         "Subject" | "subject" => result.subject = val.to_string(),
+         "Reply-To" | "Reply-to" => gdata.replyto = check_emails(key, val)?,
+         "cc" | "Cc" | "CC" => gdata.cc = check_emails(key, val)?,
+         "Subject" | "subject" => gdata.subject = val.to_string(),
          _ => return Err(format!("invalid configuration datum: *{}*", key)),
       }
    }
+   let result = Config {
+      gdata: gdata,
+      tool_name: String::from(tool_name),
+      tool_version: String::from(tool_version),
+      recipients: vec![],
+   };
    Ok(result)
 }
 
@@ -258,6 +283,7 @@ fn parse_recipients(cfg: &ini::Ini) -> Result<Vec<Recipient>, String> {
          Ok(rd) => result.push(Recipient {
             email: key.to_string(),
             names: names,
+            gdata: None,
             data: rd,
          }),
          Err(msg) => return Err(format!("invalid recipient data for {} ({})", key, msg)),
@@ -465,11 +491,13 @@ daisy@example.com=Daisy Lila|ORG:-NASA|TITLE:-Dr.|cc:-+inc@gg.org"#;
       expected.push(Recipient {
          email: String::from("daisy@example.com"),
          names: sa(&["Daisy", "Lila"]),
+         gdata: None,
          data: sm(&[("ORG", "NASA"), ("TITLE", "Dr."), ("cc", "+inc@gg.org")]),
       });
       expected.push(Recipient {
          email: String::from("jd@example.com"),
          names: sa(&["John", "Doe", "Jr."]),
+         gdata: None,
          data: sm(&[
             ("ORG", "EFF"),
             ("TITLE", "PhD"),
@@ -479,6 +507,7 @@ daisy@example.com=Daisy Lila|ORG:-NASA|TITLE:-Dr.|cc:-+inc@gg.org"#;
       expected.push(Recipient {
          email: String::from("mm@gmail.com"),
          names: sa(&["Mickey", "Mouse"]),
+         gdata: None,
          data: sm(&[("ORG", "Disney")]),
       });
       assert_eq!(
@@ -492,6 +521,7 @@ daisy@example.com=Daisy Lila|ORG:-NASA|TITLE:-Dr.|cc:-+inc@gg.org"#;
       let r = Recipient {
          email: String::from("jd@example.com"),
          names: sa(&["John", "Doe", "Jr."]),
+         gdata: None,
          data: sm(&[
             ("ORG", "EFF"),
             ("TITLE", "PhD"),
