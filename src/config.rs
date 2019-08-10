@@ -651,6 +651,23 @@ a@example.com=A B C|:-Disney"#;
    }
 
    #[test]
+   fn parse_recipient_data_happy_case_override_everything() {
+      let expected = sm(&[
+         ("From", r#""Carl Gauss" <cgauss@math.org>"#),
+         ("Subject", "Do you like math?"),
+         ("Reply-To", r#""Leonhard Euler" <leuler@math.org>"#),
+         ("Cc", "briemann@math.org,gcantor@math.org"),
+      ]);
+      let mut args: Vec<&str> =
+         r#"likes2@override.everything=Big Overrider|From:-"Carl Gauss" <cgauss@math.org>|Subject:-Do you like math?|Reply-To:-"Leonhard Euler" <leuler@math.org>|Cc:-briemann@math.org,gcantor@math.org"#
+            .split("|")
+            .collect();
+
+      args.remove(0);
+      assert_eq!(Ok(expected), parse_recipient_data(&args));
+   }
+
+   #[test]
    fn parse_recipient_data_happy_case_with_empty_key_and_value() {
       let expected = sm(&[("ORG", "EFF"), ("cc", "bl@kf.io,info@ex.org")]);
       let mut args: Vec<&str> =
