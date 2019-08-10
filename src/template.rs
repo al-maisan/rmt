@@ -168,13 +168,11 @@ Sent with rmt version 0.1.2, see https://301.mx/rmt for details"#;
       recipients.push(Recipient {
          email: String::from("daisy@example.com"),
          names: sa(&["Daisy", "Lila"]),
-         gdata: None,
          data: sm(&[("ORG", "NASA"), ("TITLE", "Dr."), ("cc", "+inc@gg.org")]),
       });
       recipients.push(Recipient {
          email: String::from("jd@example.com"),
          names: sa(&["John", "Doe", "Jr."]),
-         gdata: None,
          data: sm(&[
             ("ORG", "EFF"),
             ("TITLE", "PhD"),
@@ -184,7 +182,6 @@ Sent with rmt version 0.1.2, see https://301.mx/rmt for details"#;
       recipients.push(Recipient {
          email: String::from("mm@gmail.com"),
          names: sa(&["Mickey", "Mouse"]),
-         gdata: None,
          data: sm(&[("ORG", "Disney")]),
       });
       let template = new("Missing key: %MK%");
@@ -202,13 +199,11 @@ Sent with rmt version 0.1.2, see https://301.mx/rmt for details"#;
       recipients.push(Recipient {
          email: String::from("daisy@example.com"),
          names: sa(&["Daisy", "Lila"]),
-         gdata: None,
          data: sm(&[("MK", "NASA"), ("TITLE", "Dr."), ("cc", "+inc@gg.org")]),
       });
       recipients.push(Recipient {
          email: String::from("jd@example.com"),
          names: sa(&["John", "Doe", "Jr."]),
-         gdata: None,
          data: sm(&[
             ("ORG", "EFF"),
             ("TITLE", "PhD"),
@@ -218,7 +213,6 @@ Sent with rmt version 0.1.2, see https://301.mx/rmt for details"#;
       recipients.push(Recipient {
          email: String::from("mm@gmail.com"),
          names: sa(&["Mickey", "Mouse"]),
-         gdata: None,
          data: sm(&[("ORG", "Disney")]),
       });
       let template = new("Missing key: %MK% %M2% %m3%");
@@ -236,19 +230,16 @@ Sent with rmt version 0.1.2, see https://301.mx/rmt for details"#;
       recipients.push(Recipient {
          email: String::from("daisy@example.com"),
          names: sa(&["Daisy", "Lila"]),
-         gdata: None,
          data: sm(&[("ORG", "NASA"), ("TITLE", "Dr."), ("cc", "+inc@gg.org")]),
       });
       recipients.push(Recipient {
          email: String::from("jd@example.com"),
          names: sa(&["John", "Doe", "Jr."]),
-         gdata: None,
          data: sm(&[("ORG", "EFF"), ("TITLE", "PhD")]),
       });
       recipients.push(Recipient {
          email: String::from("mm@gmail.com"),
          names: sa(&["Mickey", "Mouse"]),
-         gdata: None,
          data: sm(&[("ORG", "Disney")]),
       });
       let template = new("only key: %ORG%");
@@ -261,19 +252,16 @@ Sent with rmt version 0.1.2, see https://301.mx/rmt for details"#;
       recipients.push(Recipient {
          email: String::from("daisy@example.com"),
          names: sa(&["Daisy", "Lila"]),
-         gdata: None,
          data: sm(&[("ORG", "NASA"), ("TITLE", "Dr."), ("cc", "+inc@gg.org")]),
       });
       recipients.push(Recipient {
          email: String::from("jd@example.com"),
          names: sa(&["John", "Doe", "Jr."]),
-         gdata: None,
          data: sm(&[("ORG", "EFF"), ("TITLE", "PhD")]),
       });
       recipients.push(Recipient {
          email: String::from("mm@gmail.com"),
          names: sa(&["Mickey", "Mouse"]),
-         gdata: None,
          data: sm(&[("ORG", "Disney")]),
       });
       let template = new("no keys in template");
@@ -286,19 +274,16 @@ Sent with rmt version 0.1.2, see https://301.mx/rmt for details"#;
       recipients.push(Recipient {
          email: String::from("daisy@example.com"),
          names: sa(&["Daisy", "Lila"]),
-         gdata: None,
          data: sm(&[]),
       });
       recipients.push(Recipient {
          email: String::from("jd@example.com"),
          names: sa(&["John", "Doe", "Jr."]),
-         gdata: None,
          data: sm(&[]),
       });
       recipients.push(Recipient {
          email: String::from("mm@gmail.com"),
          names: sa(&["Mickey", "Mouse"]),
-         gdata: None,
          data: sm(&[]),
       });
       let template = new("auto keys only: %_FN%, %_LN%, %_EA% !!");
@@ -311,19 +296,16 @@ Sent with rmt version 0.1.2, see https://301.mx/rmt for details"#;
       recipients.push(Recipient {
          email: String::from("daisy@example.com"),
          names: sa(&["Daisy", "Lila"]),
-         gdata: None,
          data: sm(&[("_USER_DEFINED", "dec")]),
       });
       recipients.push(Recipient {
          email: String::from("jd@example.com"),
          names: sa(&["John", "Doe", "Jr."]),
-         gdata: None,
          data: sm(&[("_USER_DEFINED", "jec")]),
       });
       recipients.push(Recipient {
          email: String::from("mm@gmail.com"),
          names: sa(&["Mickey", "Mouse"]),
-         gdata: None,
          data: sm(&[("_USER_DEFINED", "mgc")]),
       });
       let template = new("auto keys only: %_FN%, %_USER_DEFINED%!!");
@@ -336,19 +318,16 @@ Sent with rmt version 0.1.2, see https://301.mx/rmt for details"#;
       recipients.push(Recipient {
          email: String::from("daisy@example.com"),
          names: sa(&["Daisy", "Lila"]),
-         gdata: None,
          data: sm(&[("USER_DEFINED", "dec")]),
       });
       recipients.push(Recipient {
          email: String::from("jd@example.com"),
          names: sa(&["John", "Doe", "Jr."]),
-         gdata: None,
          data: sm(&[("_USER_DEFINED", "jec")]),
       });
       recipients.push(Recipient {
          email: String::from("mm@gmail.com"),
          names: sa(&["Mickey", "Mouse"]),
-         gdata: None,
          data: sm(&[("_USER_DEFINED", "mgc")]),
       });
       let template = new("auto keys only: %_FN%, %_USER_DEFINED%!!");

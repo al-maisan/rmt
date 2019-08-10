@@ -80,7 +80,6 @@ pub struct Recipient {
    pub email: String,
    /// This is a list of the recipient's names
    pub names: Vec<String>,
-   pub gdata: Option<GData>,
    /// This is a map with miscellaneous optional metadata that was defined for the recipient in
    /// question
    pub data: HashMap<String, String>,
@@ -283,7 +282,6 @@ fn parse_recipients(cfg: &ini::Ini) -> Result<Vec<Recipient>, String> {
          Ok(rd) => result.push(Recipient {
             email: key.to_string(),
             names: names,
-            gdata: None,
             data: rd,
          }),
          Err(msg) => return Err(format!("invalid recipient data for {} ({})", key, msg)),
@@ -491,13 +489,11 @@ daisy@example.com=Daisy Lila|ORG:-NASA|TITLE:-Dr.|cc:-+inc@gg.org"#;
       expected.push(Recipient {
          email: String::from("daisy@example.com"),
          names: sa(&["Daisy", "Lila"]),
-         gdata: None,
          data: sm(&[("ORG", "NASA"), ("TITLE", "Dr."), ("cc", "+inc@gg.org")]),
       });
       expected.push(Recipient {
          email: String::from("jd@example.com"),
          names: sa(&["John", "Doe", "Jr."]),
-         gdata: None,
          data: sm(&[
             ("ORG", "EFF"),
             ("TITLE", "PhD"),
@@ -507,7 +503,6 @@ daisy@example.com=Daisy Lila|ORG:-NASA|TITLE:-Dr.|cc:-+inc@gg.org"#;
       expected.push(Recipient {
          email: String::from("mm@gmail.com"),
          names: sa(&["Mickey", "Mouse"]),
-         gdata: None,
          data: sm(&[("ORG", "Disney")]),
       });
       assert_eq!(
@@ -521,7 +516,6 @@ daisy@example.com=Daisy Lila|ORG:-NASA|TITLE:-Dr.|cc:-+inc@gg.org"#;
       let r = Recipient {
          email: String::from("jd@example.com"),
          names: sa(&["John", "Doe", "Jr."]),
-         gdata: None,
          data: sm(&[
             ("ORG", "EFF"),
             ("TITLE", "PhD"),
